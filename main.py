@@ -7,6 +7,7 @@ import tempfile
 from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
+from decimal import Decimal
 from functools import cache
 from typing import List, Optional, cast
 
@@ -14,7 +15,6 @@ import hikari
 import tiktoken
 from async_lru import alru_cache
 from langchain_community.callbacks.manager import get_openai_callback
-from langchain_community.callbacks.openai_info import OpenAICallbackHandler
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.output_parsers import StrOutputParser
@@ -40,6 +40,26 @@ def get_chat_model(chat_model_name: str) -> BaseChatModel:
     provider, chat_model_name = chat_model_name.split(":")
     if provider == "openai":
         return ChatOpenAI(model=chat_model_name)
+    elif provider == "anthropic":
+        from langchain_anthropic import ChatAnthropic
+
+        return ChatAnthropic(model=chat_model_name)
+    elif provider == "google-genai":
+        from langchain_google_genai import (
+            ChatGoogleGenerativeAI,
+            HarmBlockThreshold,
+            HarmCategory,
+        )
+
+        return ChatGoogleGenerativeAI(
+            model=chat_model_name,
+            safety_settings={
+                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+            },
+        )
     else:
         raise ValueError("Unknown provider")
 
@@ -47,6 +67,8 @@ def get_chat_model(chat_model_name: str) -> BaseChatModel:
 def get_tokens(chat_model: BaseChatModel, text: str) -> int:
     if isinstance(chat_model, ChatOpenAI):
         return _get_num_tokens_openai(chat_model.model_name, text)
+    elif type(chat_model).__name__ == "ChatGoogleGenerativeAI":
+        return _get_num_tokens_openai("gpt-4-turbo-preview", text)  # fallback
     else:
         return chat_model.get_num_tokens(text)
 
@@ -64,7 +86,6 @@ class Chat:
         chat_model: BaseChatModel,
     ):
         self.history = history
-        self.last_cb: OpenAICallbackHandler | None = None
         self.chat_model = chat_model
 
     def build_chat_chain(self) -> Runnable:
@@ -103,20 +124,6 @@ class Chat:
 
     def copy(self):
         return Chat(deepcopy(self.history), self.chat_model)
-
-    def print(self, message: hikari.Message | None = None):
-        print()
-        print("#", message.make_link(message.guild_id))
-        print(f"{message.author} @ {datetime.now().replace(microsecond=0)}:")
-        for no, item in enumerate(self.history):
-            print(f"{item.type}: {item.content}")
-
-        if self.last_cb is not None:
-            usage = self.last_cb
-            print(f"{usage.completion_tokens = }")
-            print(f"{usage.prompt_tokens = }")
-            print(f"{usage.total_tokens = }")
-            print(f"{usage.total_cost = }")
 
     async def compress_large_messages(
         self,
@@ -191,7 +198,8 @@ class ChatGPT:
             return
 
         if self.bot_id not in event.message.user_mentions_ids and (
-            event.message.referenced_message is None
+            not event.message.referenced_message
+            or not event.message.referenced_message.author
             or event.message.referenced_message.author.id != self.bot_id
         ):
             return
@@ -238,10 +246,12 @@ class ChatGPT:
                     await self.preprocessing_chat(message, chat)
                     answer = await chat.ask(max_tokens=8192)
                     await self.reply(message, answer)
-                    chat.print(message)
 
-                self.config["total_tokens"] += cb.total_tokens
-                self.config["total_cost"] += cb.total_cost
+                self.config["total_tokens"] += cb.total_tokens or chat.get_tokens()
+                self.config["total_cost"] += cb.total_cost or (
+                    chat.get_tokens()
+                    * Decimal(os.environ.get("LANGBOT_COST_PER_TOKEN", "0.0001"))
+                )
         except Exception as e:
             logging.exception("Error in chatgpt")
             await self.reply(message, f":warning: **{type(e).__name__}**: {e}")
@@ -282,22 +292,26 @@ class ChatGPT:
             with tempfile.NamedTemporaryFile(suffix=".log") as f:
                 f.write(answer.encode("utf-8"))
                 answer_file = hikari.File(f.name, filename="message.log")
-                reply = await message.respond(attachment=answer_file, reply=True)
+                reply = await message.respond(
+                    attachment=answer_file, reply=True, mentions_reply=True
+                )
         else:
-            reply = await message.respond(answer, reply=True)
+            reply = await message.respond(answer, reply=True, mentions_reply=True)
 
         self.cached_reply_ids[message.id].add(reply.id)
         self.cached_messages[message.channel_id][reply.id] = reply
         return reply
 
     async def build_chat(self, message: hikari.Message) -> Chat:
-        bot_mention = f"<@{self.bot_id}>"
+        bot_mention = self.bot.get_me().mention
 
         messages: list[BaseMessage] = []
         for message in await self.fetch_all_messages(message, 64):
             role = "assistant" if message.author.id == self.bot_id else "user"
             text = cast(str, message.content)
             text = text.removeprefix(bot_mention).strip()
+            if not text:
+                text = "-" if messages else "hello"
 
             if text.lower().startswith("[system]"):
                 if role == "user":
