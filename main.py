@@ -327,7 +327,7 @@ class ChatGPT:
 
             if message.attachments:
                 text += "\n\n" + (await self.fetch_attachment(message))
-                if get_tokens(self.chat_model, text) > 1024 * 3:
+                if get_tokens(self.chat_model, text) > 8192:
                     raise ValueError("Attachment too large")
 
             if role == "system":
