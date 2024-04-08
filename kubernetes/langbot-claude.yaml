@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: langbot-claude
+  namespace: langbot
+  labels:
+    app: langbot
+    model: claude-3-opus
+spec:
+  serviceName: langbot-claude
+  replicas: 1
+  selector:
+    matchLabels:
+      app: langbot
+      model: claude-3-opus
+  template:
+    metadata:
+      labels:
+        app: langbot
+        model: claude-3-opus
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: langbot
+          image: registry-prod.deer-neon.ts.net/langbot:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 10m
+              memory: 512M
+            limits:
+              cpu: 1000m
+              memory: 512M
+          env:
+            - name: LANGBOT_CHAT_MODEL
+              value: "anthropic:claude-3-opus-20240229"
+          envFrom:
+            - secretRef:
+                name: langbot-secret-claude
+---

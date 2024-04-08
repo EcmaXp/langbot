@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: langbot-gemini
+  namespace: langbot
+  labels:
+    app: langbot
+    model: gemini-pro
+spec:
+  serviceName: langbot-gemini
+  replicas: 1
+  selector:
+    matchLabels:
+      app: langbot
+      model: gemini-pro
+  template:
+    metadata:
+      labels:
+        app: langbot
+        model: gemini-pro
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: langbot
+          image: registry-prod.deer-neon.ts.net/langbot:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 10m
+              memory: 512M
+            limits:
+              cpu: 1000m
+              memory: 512M
+          env:
+            - name: LANGBOT_CHAT_MODEL
+              value: "google-genai:gemini-pro"
+          envFrom:
+            - secretRef:
+                name: langbot-secret-gemini
+---

@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: langbot-gpt-40
+  namespace: langbot
+  labels:
+    app: langbot
+    model: gpt-4-turbo
+spec:
+  serviceName: langbot-gpt-40
+  replicas: 1
+  selector:
+    matchLabels:
+      app: langbot
+      model: gpt-4-turbo
+  template:
+    metadata:
+      labels:
+        app: langbot
+        model: gpt-4-turbo
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: langbot
+          image: registry-prod.deer-neon.ts.net/langbot:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 10m
+              memory: 512M
+            limits:
+              cpu: 1000m
+              memory: 512M
+          env:
+            - name: LANGBOT_CHAT_MODEL
+              value: "openai:gpt-4-turbo-preview"
+          envFrom:
+            - secretRef:
+                name: langbot-secret-gpt-40
+---
