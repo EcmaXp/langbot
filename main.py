@@ -9,6 +9,7 @@ from copy import deepcopy
 from datetime import datetime
 from decimal import Decimal
 from functools import cache
+from pathlib import Path
 from typing import List, Optional, cast
 
 import hikari
@@ -288,12 +289,15 @@ class ChatGPT:
 
     async def reply(self, message: hikari.Message, answer: str) -> hikari.Message:
         if len(answer) >= 2000:
-            with tempfile.NamedTemporaryFile(suffix=".log") as f:
-                f.write(answer.encode("utf-8"))
-                answer_file = hikari.File(f.name, filename="message.log")
+            path = Path(tempfile.mktemp(suffix=".log"))
+            try:
+                path.write_text(answer, encoding="utf-8")
+                answer_file = hikari.File(path, filename="message.log")
                 reply = await message.respond(
                     attachment=answer_file, reply=True, mentions_reply=True
                 )
+            finally:
+                path.unlink(missing_ok=True)
         else:
             reply = await message.respond(answer, reply=True, mentions_reply=True)
 
