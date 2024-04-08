@@ -133,12 +133,11 @@ class Chat:
         if self.get_tokens() < chat_compress_threshold:
             return
 
-        for pos, item in enumerate(self.history[3:-3]):
-            if item["role"] == "system":
+        for pos, item in enumerate(self.history[3:-3], 3):
+            if isinstance(item, SystemMessage):
                 continue
-            elif item["tokens"] > message_compress_threshold:
-                item["content"] = await get_summary(item["content"])
-                item["tokens"] = get_tokens(self.chat_model, item["content"])
+            elif get_tokens(self.chat_model, item.content) > message_compress_threshold:
+                self.history[pos] = type(item)(await get_summary(item.content))
 
 
 @alru_cache(maxsize=1024, typed=True)
