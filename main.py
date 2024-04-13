@@ -292,9 +292,11 @@ class ChatGPT:
             path = Path(tempfile.mktemp(suffix=".log"))
             try:
                 path.write_text(answer, encoding="utf-8")
-                answer_file = hikari.File(path, filename="message.log")
+                answer_file = hikari.File(path, filename="message.md")
                 reply = await message.respond(
-                    attachment=answer_file, reply=True, mentions_reply=True
+                    attachment=answer_file,
+                    reply=True,
+                    mentions_reply=True,
                 )
             finally:
                 path.unlink(missing_ok=True)
@@ -374,7 +376,7 @@ class ChatGPT:
         for attachment in message.attachments:
             if attachment.size > 1024 * 64:
                 raise ValueError("Attachment too large")
-            elif not attachment.filename.endswith((".txt", ".py", ".log")):
+            elif not attachment.filename.endswith((".txt", ".py", ".log", ".md")):
                 raise ValueError("Attachment is not text")
 
             content = await attachment.read()
