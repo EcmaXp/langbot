@@ -311,10 +311,8 @@ class ChatGPT:
         messages: list[BaseMessage] = []
         for message in await self.fetch_all_messages(message, 64):
             role = "assistant" if message.author.id == self.bot_id else "user"
-            text = cast(str, message.content)
+            text = cast(str, message.content or "")
             text = text.removeprefix(bot_mention).strip()
-            if not text:
-                text = "-" if messages else "hello"
 
             if text.lower().startswith("[system]"):
                 if role == "user":
@@ -329,6 +327,9 @@ class ChatGPT:
                 text += "\n\n" + (await self.fetch_attachment(message))
                 if get_tokens(self.chat_model, text) > 8192:
                     raise ValueError("Attachment too large")
+
+            if not text:
+                text = "-" if messages else "hello"
 
             if role == "system":
                 messages.insert(0, SystemMessage(text))
