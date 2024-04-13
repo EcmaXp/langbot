@@ -374,7 +374,7 @@ class ChatGPT:
         for attachment in message.attachments:
             if attachment.size > 1024 * 64:
                 raise ValueError("Attachment too large")
-            elif not attachment.filename.endswith((".txt", ".py")):
+            elif not attachment.filename.endswith((".txt", ".py", ".log")):
                 raise ValueError("Attachment is not text")
 
             content = await attachment.read()
