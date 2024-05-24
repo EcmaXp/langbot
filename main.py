@@ -10,7 +10,7 @@ from datetime import datetime
 from decimal import Decimal
 from functools import cache
 from pathlib import Path
-from typing import List, Optional, cast
+from typing import Awaitable, List, Tuple, Optional, cast
 
 import hikari
 import tiktoken
@@ -27,8 +27,25 @@ from langchain_core.prompts import (
 from langchain_core.runnables import Runnable, RunnablePassthrough
 from langchain_openai import ChatOpenAI
 
+from options import (
+    CHAT_POLICIES,
+    ATTACHMENT_POLICIES,
+    OPENAI_DEFAULT_IMAGE_COST,
+)
+from chat.attachment import *
+
 __author__ = "EcmaXp <ecmaxp@ecmaxp.kr>"
-__version__ = "0.1"
+__version__ = "0.2"
+
+(
+    MAX_TOKENS, MESSAGE_FETCH_LIMIT, COMPRESS_THRESHOLD_PER_CHAT, COMPRESS_THRESHOLD_PER_MSG
+) = map(CHAT_POLICIES.get, (
+    "token_limit",
+    "message_fetch_limit",
+    "compress_threshold_per_chat",
+    "compress_threshold_per_message"
+))
+TOKEN_MARKER_ATTR = "_pre_calc_tokens"
 
 
 if os.name != "nt":
@@ -65,17 +82,17 @@ def get_chat_model(chat_model_name: str) -> BaseChatModel:
         raise ValueError("Unknown provider")
 
 
-def get_tokens(chat_model: BaseChatModel, text: str) -> int:
+def get_text_tokens(chat_model: BaseChatModel, text: str) -> int:
     if isinstance(chat_model, ChatOpenAI):
-        return _get_num_tokens_openai(chat_model.model_name, text)
+        return _get_num_text_tokens_openai(chat_model.model_name, text)
     elif type(chat_model).__name__ == "ChatGoogleGenerativeAI":
-        return _get_num_tokens_openai("gpt-4-turbo-preview", text)  # fallback
+        return _get_num_text_tokens_openai("gpt-4-turbo-preview", text)  # fallback
     else:
         return chat_model.get_num_tokens(text)
 
 
 @cache
-def _get_num_tokens_openai(model_name: str, text: str) -> int:
+def _get_num_text_tokens_openai(model_name: str, text: str) -> int:
     encoding = tiktoken.encoding_for_model(model_name)
     return len(encoding.encode(text))
 
@@ -120,7 +137,7 @@ class Chat:
 
     def get_tokens(self) -> int:
         return 3 + sum(
-            get_tokens(self.chat_model, item.content) + 5 for item in self.history
+            getattr(message, TOKEN_MARKER_ATTR) + 5 for message in self.history
         )
 
     def copy(self):
@@ -134,15 +151,15 @@ class Chat:
         if self.get_tokens() < chat_compress_threshold:
             return
 
-        for pos, item in enumerate(self.history[3:-3], 3):
-            if isinstance(item, SystemMessage):
+        for message in self.history[3:-3]:
+            if isinstance(message, SystemMessage):
                 continue
-            elif get_tokens(self.chat_model, item.content) > message_compress_threshold:
-                self.history[pos] = type(item)(await get_summary(item.content))
+            elif getattr(message, TOKEN_MARKER_ATTR) > message_compress_threshold:
+                await get_summary(message)
 
 
 @alru_cache(maxsize=1024, typed=True)
-async def get_summary(text: str) -> str:
+async def get_summary(message: BaseMessage):
     chat_model = ChatOpenAI(model="gpt-3.5-turbo-0125")
     chain = (
         RunnablePassthrough()
@@ -156,13 +173,39 @@ async def get_summary(text: str) -> str:
         | StrOutputParser()
     )
 
-    summary = await chain.ainvoke({"input": text})
+    img_count = 0
+    if isinstance(message.content, str):
+        text = message.content
+    else:
+        pos, texts = 0, []
+        for _ in range(len(message.content)):
+            item = message.content[pos]
+            if item["type"] == "text":
+                texts.append(item["text"])
+                del message.content[pos]
+                pos -= 1
+            elif item["type"] == "image_url":
+                img_count += 1
+                item["image_url"]["detail"] = "low"
+            pos += 1
+        text = "\n".join(texts)
 
-    old_num_tokens = get_tokens(chat_model, text)
-    new_num_tokens = get_tokens(chat_model, summary)
+    old_num_tokens = getattr(message, TOKEN_MARKER_ATTR)
+    new_num_tokens = 0
+
+    if text:
+        summary = await chain.ainvoke({"input": text})
+        new_num_tokens += get_text_tokens(chat_model, summary)
+
+        if isinstance(message.content, str):
+            message.content = summary
+        elif summary:
+            message.content.append({ "type": "text", "text": summary })
+
+    new_num_tokens += img_count * OPENAI_DEFAULT_IMAGE_COST
 
     print(f"Summarized: {old_num_tokens} -> {new_num_tokens} tokens")
-    return summary
+    setattr(message, TOKEN_MARKER_ATTR, new_num_tokens)
 
 
 class ChatGPT:
@@ -265,8 +308,8 @@ class ChatGPT:
         print(f"{title}: Requesting {before_tokens} tokens")
 
         await chat.compress_large_messages(
-            chat_compress_threshold=4096,
-            message_compress_threshold=2048,
+            chat_compress_threshold=COMPRESS_THRESHOLD_PER_CHAT,
+            message_compress_threshold=COMPRESS_THRESHOLD_PER_MSG,
         )
         after_tokens = chat.get_tokens()
         discarded_tokens = before_tokens - after_tokens
@@ -308,10 +351,15 @@ class ChatGPT:
         return reply
 
     async def build_chat(self, message: hikari.Message) -> Chat:
+        msg_tol, cnt_tol = map(CHAT_POLICIES.get, (
+            "image_message_tolerance",
+            "image_count_tolerance"
+        ))
         bot_mention = self.bot.get_me().mention
 
         messages: list[BaseMessage] = []
-        for message in await self.fetch_all_messages(message, 64):
+        fetched = await self.fetch_all_messages(message, MESSAGE_FETCH_LIMIT)
+        for msg_index, message in enumerate(fetched):
             role = "assistant" if message.author.id == self.bot_id else "user"
             text = cast(str, message.content or "")
             text = text.removeprefix(bot_mention).strip()
@@ -325,20 +373,46 @@ class ChatGPT:
                 else:
                     raise ValueError("Unknown role")
 
+            group: Optional[AttachmentGroup] = None
             if message.attachments:
-                text += "\n\n" + (await self.fetch_attachment(message))
-                if get_tokens(self.chat_model, text) > 8192:
-                    raise ValueError("Attachment too large")
+                group = await self.fetch_attachments(message)
 
-            if not text:
-                text = "-" if messages else "hello"
+                if len(group.images) > cnt_tol or msg_index < len(fetched) - msg_tol:
+                    for i in range(len(group.images)):
+                        group.images[i] = GPTImageAttachment(group.images[i].attachment, quality="low", strict=True)
+
+            msg_type = { "system": SystemMessage, "user": HumanMessage, "assistant": AIMessage }
+            if role not in msg_type.keys():
+                continue
+            content = await group.export(text) if group else None
+            if content:
+                total_tokens = 0
+                # Text tokens
+                for item in content:
+                    if item["type"] == "text":
+                        total_tokens += get_text_tokens(self.chat_model, item["text"])
+
+                # Image tokens
+                total_tokens += sum(img.tokens for img in group.images)
+
+                if total_tokens > MAX_TOKENS:
+                    raise ValueError("Attachments are too large to upload.")
+                else:
+                    msg = msg_type[role](content=content)
+                    setattr(msg, TOKEN_MARKER_ATTR, total_tokens)
+            else:
+                if not text:
+                    text = "-" if messages else "hello"
+                total_tokens = get_text_tokens(self.chat_model, text)
+                if total_tokens > MAX_TOKENS:
+                    raise ValueError("Text is too long to read.")
+                msg = msg_type[role](text)
+                setattr(msg, TOKEN_MARKER_ATTR, total_tokens)
 
             if role == "system":
-                messages.insert(0, SystemMessage(text))
-            elif role == "user":
-                messages.append(HumanMessage(text))
-            elif role == "assistant":
-                messages.append(AIMessage(text))
+                messages.insert(0, msg)
+            else:
+                messages.append(msg)
 
         return Chat(messages, self.chat_model)
 
@@ -369,21 +443,49 @@ class ChatGPT:
         return messages[::-1]
 
     @alru_cache(maxsize=64, typed=True, ttl=3600)
-    async def fetch_attachment(self, message: hikari.Message) -> str:
-        if len(message.attachments) > 1:
-            raise ValueError("Too many attachments")
+    async def fetch_attachments(self, message: hikari.Message) -> AttachmentGroup:
+        total_max, txt_max, img_max = map(CHAT_POLICIES.get, (
+            "max_attachment_count",
+            "max_text_attachment_count",
+            "max_image_attachment_count"
+        ))
 
+        allowed_txt_ext, allowed_img_ext, allowed_img_models = map(ATTACHMENT_POLICIES.get, (
+            "allowed_text_extensions",
+            "allowed_image_extensions",
+            "allowed_image_models"
+        ))
+
+        if len(message.attachments) > total_max:
+            raise ValueError(f"The total number of attachments cannot exceed {total_max}.")
+
+        txt_pool, img_pool = [], []
         for attachment in message.attachments:
-            if attachment.size > 1024 * 64:
-                raise ValueError("Attachment too large")
-            elif not attachment.filename.endswith((".txt", ".py", ".log", ".md")):
-                raise ValueError("Attachment is not text")
+            name = attachment.filename
+            if name.endswith(allowed_txt_ext):
+                if len(txt_pool) > txt_max:
+                    raise ValueError(f"The number of text attachments cannot exceed {txt_max}.")
 
-            content = await attachment.read()
-            try:
-                return content.decode("utf-8")
-            except UnicodeDecodeError:
-                raise ValueError("Attachment is not text (utf-8)")
+                txt = TextAttachment(attachment)
+                err = txt.check_error()
+                if err is not None:
+                    raise err
+                else:
+                    txt_pool.append(TextAttachment(attachment))
+
+            if name.endswith(allowed_img_ext):
+                if self.chat_model.name in allowed_img_models:
+                    if len(img_pool) > img_max:
+                        raise ValueError(f"The number of image attachments cannot exceed {img_max}.")
+                    else:
+                        img = GPTImageAttachment(attachment)
+                        err = img.check_error()
+                        if err is not None:
+                            raise err
+                        else:
+                            img_pool.append(GPTImageAttachment(attachment))
+
+        return AttachmentGroup(texts=txt_pool, images=img_pool)
 
 
 bot = hikari.GatewayBot(
