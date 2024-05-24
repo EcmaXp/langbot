@@ -10,7 +10,7 @@ from datetime import datetime
 from decimal import Decimal
 from functools import cache
 from pathlib import Path
-from typing import Awaitable, List, Tuple, Optional, cast
+from typing import List, Optional, cast
 
 import hikari
 import tiktoken

@@ -244,7 +244,7 @@ class GPTImageAttachment(DiscordAttachment):
         image.save(buffer, format=image.format)
         encoded_image = base64.b64encode(buffer.getvalue())
 
-        img_format = image.format
+        img_format = image.format.lower()
         if img_format == "jpg":
             img_format = "jpeg"
 
