@@ -25,7 +25,7 @@ CHAT_POLICIES = {
     # Images in last N messages hold their original quality, others are forcibly degraded to low quality
     "image_message_tolerance": 3,
     # If there are more than N images per message, all images are forcibly degraded to low quality
-    "image_count_tolerance": 3
+    "image_count_tolerance": 1
 }
 
 ATTACHMENT_POLICIES = {
@@ -38,8 +38,8 @@ ATTACHMENT_POLICIES = {
     "allowed_image_models": ("gpt-4o", "gpt-4o-2024-05-13"),
 
     "max_image_file_size": 10 * MB,
-    "max_image_width": 4 * K,
-    "max_image_height": 4 * K,
+    "max_image_width": 8 * K,
+    "max_image_height": 8 * K,
 
     "default_image_quality": "auto",
     # If this option is set, every request is fixed to this value.

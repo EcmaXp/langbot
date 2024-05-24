@@ -95,6 +95,8 @@ class GPTImageAttachment(DiscordAttachment):
         MAX_HEIGHT,
         MAX_SIZE,
 
+        DEFAULT_QUALITY,
+        STRICT_QUALITY,
         LOW_QUALITY_THRESHOLD,
         LOW_QUALITY_TOKEN_THRESHOLD,
 
@@ -107,6 +109,8 @@ class GPTImageAttachment(DiscordAttachment):
         "max_image_height",
         "max_image_file_size",
 
+        "default_image_quality",
+        "strict_image_quality",
         "low_quality_threshold",
         "low_quality_token_threshold",
 
@@ -119,23 +123,23 @@ class GPTImageAttachment(DiscordAttachment):
     def __init__(self,
             attachment: Attachment,
             *,
-            quality: str = GLOBAL_OPTIONS["default_image_quality"],
+            quality: str = DEFAULT_QUALITY,
             strict: bool = False
         ):
         super().__init__(attachment)
 
         self._strict = strict
-        if not strict and GLOBAL_OPTIONS["strict_image_quality"] is not None:
-            self._quality = GLOBAL_OPTIONS["strict_image_quality"]
+        if not strict and self.STRICT_QUALITY is not None:
+            self._quality = self.STRICT_QUALITY
         else:
             self._quality = quality
             if not strict:
                 width, height = attachment.width, attachment.height
                 cost = self.calc_openai_tokens(width, height, quality=quality)
 
-                if max(width, height) > GLOBAL_OPTIONS["low_quality_threshold"]:
+                if max(width, height) > self.LOW_QUALITY_THRESHOLD:
                     self._quality = "low"
-                if cost > GLOBAL_OPTIONS["low_quality_token_threshold"]:
+                if cost > self.LOW_QUALITY_TOKEN_THRESHOLD:
                     self._quality = "low"
 
         self._tokens = self.calc_openai_tokens(attachment.width, attachment.height, quality=self._quality)
