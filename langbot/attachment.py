@@ -112,9 +112,9 @@ class GPTImageAttachment(DiscordAttachment):
                     "Image payload should have 'url' field to contain an image."
                 )
 
-            allowed = (ext[1:] for ext in policy.allowed_image_extensions)
+            allowed_ext = (ext.replace(".", "") for ext in policy.allowed_image_extensions)
 
-            is_base64 = re.match(f"data:image/({'|'.join(allowed)});base64,", v["url"])
+            is_base64 = re.match(f"data:image/({'|'.join(allowed_ext)});base64,", v["url"])
             is_discord_cdn = re.match(
                 "https://cdn.discordapp.com/attachments", v["url"]
             )
@@ -277,16 +277,12 @@ class GPTImageAttachment(DiscordAttachment):
 
         buffer = BytesIO()
         image.save(buffer, format=image.format)
-        encoded_image = base64.b64encode(buffer.getvalue())
-
-        img_format = image.format.lower()
-        if img_format == "jpg":
-            img_format = "jpeg"
+        encoded_image = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
         content = self.ImagePayload(
             type="image_url",
             image_url={
-                "url": f"data:image/{img_format};base64,{encoded_image}",
+                "url": f"data:image/{image.format.lower()};base64,{encoded_image}",
                 "detail": self.quality,
             },
         )

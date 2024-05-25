@@ -119,9 +119,18 @@ class Chat:
         return output
 
     def get_tokens(self) -> int:
-        return 3 + sum(
-            getattr(message, TOKEN_MARKER_ATTR) + 5 for message in self.history
-        )
+        tokens = 3
+        for message in self.history:
+            tokens += 5
+            if hasattr(message, TOKEN_MARKER_ATTR):
+                tokens += getattr(message, TOKEN_MARKER_ATTR)
+            elif isinstance(message.content, str):
+                tokens += get_text_tokens(self.chat_model, message.content)
+            elif isinstance(message.content, dict):
+                # TODO: implement this
+                raise NotImplementedError("Calculating tokens in multimedia responds is not implemented.")
+
+        return tokens
 
     def copy(self):
         return Chat(deepcopy(self.history), self.chat_model)
@@ -451,7 +460,8 @@ class ChatGPT:
                 txt_pool.append(TextAttachment(attachment))
 
             if name.endswith(policy.allowed_image_extensions):
-                if self.chat_model.name in policy.allowed_image_models:
+                _, model_name = self.config["chat_model"].split(":")
+                if model_name in policy.allowed_image_models:
                     if len(img_pool) > policy.max_image_attachment_count:
                         raise ValueError(
                             f"The number of image attachments cannot exceed {policy.max_image_attachment_count}."

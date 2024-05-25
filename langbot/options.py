@@ -1,4 +1,4 @@
-from enum import Enum
+import enum
 
 from pydantic import BaseModel
 
@@ -19,7 +19,8 @@ class OpenAISettings(BaseModel):
 openai_settings = OpenAISettings()
 
 
-class ImageQuality(Enum, str):
+@enum.unique
+class ImageQuality(str, enum.Enum):
     Low = "low"
     High = "high"
     Auto = "auto"
@@ -79,8 +80,8 @@ class Policy(BaseModel):
         + openai_settings.OPENAI_DEFAULT_IMAGE_COST
     )
 
-    # Since Discord CDN may block bot-scrapping, this option should be able to be optional. (default: False)
-    discord_url_allowed: int = False
+    # Since Discord CDN may block bot-scrapping, this option should be able to be optional. (default: True)
+    discord_url_allowed: bool = True
 
 
 policy = Policy()
