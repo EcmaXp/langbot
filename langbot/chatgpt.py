@@ -29,7 +29,6 @@ from langchain_openai import ChatOpenAI
 from .attachment import AttachmentGroup, GPTImageAttachment, TextAttachment
 from .options import policy, openai_settings, ImageQuality
 
-
 MAX_TOKENS = policy.token_limit
 MESSAGE_FETCH_LIMIT = policy.message_fetch_limit
 COMPRESS_THRESHOLD_PER_CHAT = policy.compress_threshold_per_chat
@@ -439,24 +438,32 @@ class ChatGPT:
                 f"The total number of attachments cannot exceed {policy.max_attachment_count}."
             )
 
-        txt_pool, img_pool = [], []
-        for attachment in message.attachments:
-            name = attachment.filename
-            if name.endswith(policy.allowed_text_extensions):
-                if len(txt_pool) > policy.max_text_attachment_count:
-                    raise ValueError(
-                        f"The number of text attachments cannot exceed {policy.max_text_attachment_count}."
-                    )
+        text_attachments = [
+            attachment
+            for attachment in message.attachments
+            if attachment.filename.endswith(policy.allowed_text_extensions)
+        ]
 
-                txt_pool.append(TextAttachment(attachment))
+        if self.chat_model.name in policy.allowed_image_models:
+            image_attachments = [
+                attachment
+                for attachment in message.attachments
+                if attachment.filename.endswith(policy.allowed_image_extensions)
+            ]
+        else:
+            image_attachments = []
 
-            if name.endswith(policy.allowed_image_extensions):
-                if self.chat_model.name in policy.allowed_image_models:
-                    if len(img_pool) > policy.max_image_attachment_count:
-                        raise ValueError(
-                            f"The number of image attachments cannot exceed {policy.max_image_attachment_count}."
-                        )
-                    else:
-                        img_pool.append(GPTImageAttachment(attachment))
+        if len(text_attachments) > policy.max_text_attachment_count:
+            raise ValueError(
+                f"The number of text attachments cannot exceed {policy.max_text_attachment_count}."
+            )
 
-        return AttachmentGroup(texts=txt_pool, images=img_pool)
+        if len(image_attachments) > policy.max_image_attachment_count:
+            raise ValueError(
+                f"The number of image attachments cannot exceed {policy.max_image_attachment_count}."
+            )
+
+        texts = list(map(TextAttachment, text_attachments))
+        images = list(map(GPTImageAttachment, image_attachments))
+
+        return AttachmentGroup(texts=texts, images=images)
