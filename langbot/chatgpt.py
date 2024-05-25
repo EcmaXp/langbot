@@ -453,7 +453,8 @@ class ChatGPT:
             if attachment.filename.endswith(policy.allowed_text_extensions)
         ]
 
-        if self.chat_model.name in policy.allowed_image_models:
+        _, model_name = self.config["chat_model"].split(":")
+        if model_name in policy.allowed_image_models:
             image_attachments = [
                 attachment
                 for attachment in message.attachments
@@ -461,16 +462,6 @@ class ChatGPT:
             ]
         else:
             image_attachments = []
-
-            if name.endswith(policy.allowed_image_extensions):
-                _, model_name = self.config["chat_model"].split(":")
-                if model_name in policy.allowed_image_models:
-                    if len(img_pool) > policy.max_image_attachment_count:
-                        raise ValueError(
-                            f"The number of image attachments cannot exceed {policy.max_image_attachment_count}."
-                        )
-                    else:
-                        img_pool.append(GPTImageAttachment(attachment))
 
         if len(image_attachments) > policy.max_image_attachment_count:
             raise ValueError(
