@@ -13,7 +13,7 @@ langchain-community = "^0.0.31"
 langchain-openai = "^0.1.1"
 langchain-anthropic = "^0.1.6"
 langchain-google-genai = "^1.0.1"
-uvloop = "^0.19.0"
+uvloop = { version = "^0.19.0", markers = "sys_platform != 'win32' and sys_platform != 'cygwin' and platform_python_implementation != 'PyPy'" }
 async-lru = "^2.0.4"
 transformers = "^4.39.3"
 pillow = "^10.3.0"
