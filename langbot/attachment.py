@@ -13,6 +13,7 @@ from pydantic import BaseModel, field_validator
 
 from PIL import Image
 from hikari import Attachment
+from pydantic import BaseModel, field_validator
 
 from .options import openai_settings, attachment_policy, ImageQuality
 from .utils import humanize_tuple
@@ -99,14 +100,16 @@ class TextAttachment(DiscordAttachment):
 class GPTImageAttachment(DiscordAttachment):
     class ImagePayload(BaseModel):
         type: str
-        image_url: Dict[str, str]
+        image_url: dict[str, str]
 
+        @classmethod
         @field_validator("type")
         def type_must_equal_to_image_url(cls, v):
             if v != "image_url":
                 raise ValueError("Type must be eqaul to 'image_url'.")
             return v
 
+        @classmethod
         @field_validator("image_url")
         def is_image_url_valid_format(cls, v):
             if "url" not in v:
