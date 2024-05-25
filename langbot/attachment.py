@@ -2,8 +2,14 @@ from __future__ import annotations
 
 import base64
 import math
+import re
 from abc import ABCMeta, abstractmethod
 from io import BytesIO
+<<<<<<< Updated upstream
+=======
+from typing import List, Dict
+from pydantic import BaseModel, field_validator
+>>>>>>> Stashed changes
 
 from PIL import Image
 from hikari import Attachment
@@ -93,6 +99,33 @@ class TextAttachment(DiscordAttachment):
 
 
 class GPTImageAttachment(DiscordAttachment):
+    class ImagePayload(BaseModel):
+        type: str
+        image_url: Dict[str, str]
+
+        @field_validator("type")
+        def type_must_equal_to_image_url(cls, v):
+            if v != "image_url":
+                raise ValueError("Type must be eqaul to 'image_url'.")
+            return v
+
+        @field_validator("image_url")
+        def is_image_url_valid_format(cls, v):
+            if "url" not in v:
+                raise ValueError("Image payload should have 'url' field to contain an image.")
+
+            allowed = (ext[1:] for ext in attachment_policy.allowed_image_extensions)
+
+            is_base64 = re.match(f"data:image/({'|'.join(allowed)});base64,", v["url"])
+            is_discord_cdn = re.match("https://cdn.discordapp.com/attachments", v["url"])
+
+            if not is_base64 and not is_discord_cdn:
+                raise ValueError("Invalid image format, every image should be base64 format or Discord CDN URL.")
+            if "detail" in v and v["detail"] not in ("low", "auto", "high"):
+                raise ValueError(
+                    "Invalid image quality specifier, it should be one of either 'low', 'high', or 'auto'.")
+            return v
+
     def __init__(
         self,
         attachment: Attachment,
@@ -155,7 +188,7 @@ class GPTImageAttachment(DiscordAttachment):
                 cost += (
                     openai_settings.OPENAI_IMAGE_BLOCK_COST
                     * math.ceil(width / 512)
-                    * math.ceil(width / 512)
+                    * math.ceil(height / 512)
                 )
             elif ratio > 1:
                 cost += (
@@ -229,18 +262,17 @@ class GPTImageAttachment(DiscordAttachment):
         # It doesn't seem like OpenAI image scrapper supports this hack.
         # So we supply base64 encoded image (* token cost is the same as URL).
         if attachment_policy.discord_url_allowed:
-            content = {
-                "type": "image_url",
-                "image_url": {"url": self.attachment.url, "detail": self.quality},
-            }
-            return content
+            content = self.ImagePayload(
+                type="image_url",
+                image_url={"url": self.attachment.url, "detail": self.quality},
+            )
+            return content.model_dump()
 
         raw_data = await self.attachment.read()
         image = Image.open(BytesIO(raw_data))
 
-        if hasattr(image, "is_animated"):
-            if getattr(image, "is_animated"):
-                image.seek(0)  # Fixed to the first frame
+        if hasattr(image, "is_animated") and getattr(image, "is_animated"):
+            image.seek(0)  # Fixed to the first frame
 
         buffer = BytesIO()
         image.save(buffer, format=image.format)
@@ -250,12 +282,11 @@ class GPTImageAttachment(DiscordAttachment):
         if img_format == "jpg":
             img_format = "jpeg"
 
-        content = {
-            "type": "image_url",
-            "image_url": {
+        content = self.ImagePayload(
+            type="image_url",
+            image_url={
                 "url": f"data:image/{img_format};base64,{encoded_image}",
                 "detail": self.quality,
-            },
-        }
-
-        return content
+            }
+        )
+        return content.model_dump()
