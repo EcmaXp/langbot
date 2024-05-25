@@ -29,9 +29,6 @@ from langchain_openai import ChatOpenAI
 from .attachment import AttachmentGroup, GPTImageAttachment, TextAttachment
 from .options import chat_policy, openai_settings, ImageQuality
 
-__author__ = "EcmaXp <ecmaxp@ecmaxp.kr>"
-__version__ = "0.2"
-
 
 MAX_TOKENS = chat_policy.token_limit
 MESSAGE_FETCH_LIMIT = chat_policy.message_fetch_limit
@@ -463,35 +460,3 @@ class ChatGPT:
                         img_pool.append(GPTImageAttachment(attachment))
 
         return AttachmentGroup(texts=txt_pool, images=img_pool)
-
-
-bot = hikari.GatewayBot(
-    os.environ.get("DISCORD_TOKEN"),
-    intents=hikari.Intents.ALL_MESSAGES | hikari.Intents.MESSAGE_CONTENT,
-)
-
-
-chatgpt = ChatGPT(
-    bot,
-    {"chat_model": os.environ["LANGBOT_CHAT_MODEL"]},
-)
-
-
-@bot.listen()
-async def on_ready(event: hikari.ShardReadyEvent):
-    await chatgpt.on_ready(event)
-
-
-@bot.listen()
-async def on_message(event: hikari.MessageCreateEvent):
-    await chatgpt.on_message(event)
-
-
-@bot.listen()
-async def on_message_edit(event: hikari.MessageUpdateEvent):
-    await chatgpt.on_message_edit(event)
-
-
-@bot.listen()
-async def on_message_delete(event: hikari.MessageDeleteEvent):
-    await chatgpt.on_message_delete(event)
