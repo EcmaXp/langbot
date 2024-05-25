@@ -33,7 +33,7 @@ MAX_TOKENS = policy.token_limit
 MESSAGE_FETCH_LIMIT = policy.message_fetch_limit
 COMPRESS_THRESHOLD_PER_CHAT = policy.compress_threshold_per_chat
 COMPRESS_THRESHOLD_PER_MSG = policy.compress_threshold_per_message
-TOKEN_MARKER_ATTR = "_pre_calc_tokens"
+TOKEN_MARKER_ATTR = "__pre_calc_tokens"
 
 
 def get_chat_model(chat_model_name: str) -> BaseChatModel:

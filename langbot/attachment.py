@@ -92,43 +92,44 @@ class TextAttachment(DiscordAttachment):
         return result
 
 
-class GPTImageAttachment(DiscordAttachment):
-    class ImagePayload(BaseModel):
-        type: str
-        image_url: dict[str, str]
+class ImagePayload(BaseModel):
+    type: str
+    image_url: dict[str, str]
 
-        @classmethod
-        @field_validator("type")
-        def type_must_equal_to_image_url(cls, v):
-            if v != "image_url":
-                raise ValueError("Type must be eqaul to 'image_url'.")
-            return v
+    @classmethod
+    @field_validator("type")
+    def type_must_equal_to_image_url(cls, v):
+        if v != "image_url":
+            raise ValueError("Type must be eqaul to 'image_url'.")
+        return v
 
-        @classmethod
-        @field_validator("image_url")
-        def is_image_url_valid_format(cls, v):
-            if "url" not in v:
-                raise ValueError(
-                    "Image payload should have 'url' field to contain an image."
-                )
-
-            allowed_ext = (ext.replace(".", "") for ext in policy.allowed_image_extensions)
-
-            is_base64 = re.match(f"data:image/({'|'.join(allowed_ext)});base64,", v["url"])
-            is_discord_cdn = re.match(
-                "https://cdn.discordapp.com/attachments", v["url"]
+    @classmethod
+    @field_validator("image_url")
+    def is_image_url_valid_format(cls, v):
+        if "url" not in v:
+            raise ValueError(
+                "Image payload should have 'url' field to contain an image."
             )
 
-            if not is_base64 and not is_discord_cdn:
-                raise ValueError(
-                    "Invalid image format, every image should be base64 format or Discord CDN URL."
-                )
-            if "detail" in v and v["detail"] not in ("low", "auto", "high"):
-                raise ValueError(
-                    "Invalid image quality specifier, it should be one of either 'low', 'high', or 'auto'."
-                )
-            return v
+        allowed_ext = (ext.replace(".", "") for ext in policy.allowed_image_extensions)
 
+        is_base64 = re.match(f"data:image/({'|'.join(allowed_ext)});base64,", v["url"])
+        is_discord_cdn = re.match(
+            "https://cdn.discordapp.com/attachments", v["url"]
+        )
+
+        if not is_base64 and not is_discord_cdn:
+            raise ValueError(
+                "Invalid image format, every image should be base64 format or Discord CDN URL."
+            )
+        if "detail" in v and v["detail"] not in ("low", "auto", "high"):
+            raise ValueError(
+                "Invalid image quality specifier, it should be one of either 'low', 'high', or 'auto'."
+            )
+        return v
+
+
+class GPTImageAttachment(DiscordAttachment):
     def __init__(
         self,
         attachment: Attachment,
@@ -138,10 +139,10 @@ class GPTImageAttachment(DiscordAttachment):
     ):
         super().__init__(attachment)
 
-        self._strict = strict
-        self._quality = self.determine_image_quality(attachment, quality, strict)
-        self._tokens = self.calc_openai_tokens(
-            attachment.width, attachment.height, quality=self._quality
+        self.strict = strict
+        self.quality = self.determine_image_quality(attachment, quality, strict)
+        self.tokens = self.calc_openai_tokens(
+            attachment.width, attachment.height, quality=self.quality
         )
 
         self.check_error()
@@ -222,18 +223,6 @@ class GPTImageAttachment(DiscordAttachment):
         else:
             return math.inf
 
-    @property
-    def quality(self):
-        return self._quality
-
-    @property
-    def strict(self):
-        return self._strict
-
-    @property
-    def tokens(self):
-        return self._tokens
-
     def check_error(self):
         att = self.attachment
         if not att.filename.endswith(policy.allowed_image_extensions):
@@ -263,7 +252,7 @@ class GPTImageAttachment(DiscordAttachment):
         # It doesn't seem like OpenAI image scrapper supports this hack.
         # So we supply base64 encoded image (* token cost is the same as URL).
         if policy.discord_url_allowed:
-            content = self.ImagePayload(
+            content = ImagePayload(
                 type="image_url",
                 image_url={"url": self.attachment.url, "detail": self.quality},
             )
@@ -279,7 +268,7 @@ class GPTImageAttachment(DiscordAttachment):
         image.save(buffer, format=image.format)
         encoded_image = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-        content = self.ImagePayload(
+        content = ImagePayload(
             type="image_url",
             image_url={
                 "url": f"data:image/{image.format.lower()};base64,{encoded_image}",
