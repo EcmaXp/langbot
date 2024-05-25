@@ -9,7 +9,7 @@ from typing import List
 from PIL import Image
 from hikari import Attachment
 
-from .options import ATTACHMENT_POLICIES as GLOBAL_OPTIONS
+from .options import openai_settings, attachment_policy
 from .utils import humanize_tuple
 
 
@@ -62,19 +62,15 @@ class DiscordAttachment(metaclass=ABCMeta):
 
 
 class TextAttachment(DiscordAttachment):
-    MAX_SIZE, ALLOWED_EXTENSIONS = map(
-        GLOBAL_OPTIONS.get, ("max_text_file_size", "allowed_text_extensions")
-    )
-
     def check_error(self):
         att = self.attachment
-        if not att.filename.endswith(self.ALLOWED_EXTENSIONS):
+        if not att.filename.endswith(attachment_policy.allowed_text_extensions):
             return ValueError(
-                f"Only supported extensions in text files are {humanize_tuple(self.ALLOWED_EXTENSIONS)}."
+                f"Only supported extensions in text files are {humanize_tuple(attachment_policy.allowed_text_extensions)}."
             )
-        elif att.size > self.MAX_SIZE:
+        elif att.size > attachment_policy.max_text_file_size:
             return ValueError(
-                f"File is too large to upload. It must be at most {self.MAX_SIZE // 1024} KB."
+                f"File is too large to upload. It must be at most {attachment_policy.max_text_file_size // 1024} KB."
             )
 
         return None
@@ -94,54 +90,27 @@ class TextAttachment(DiscordAttachment):
 
 
 class GPTImageAttachment(DiscordAttachment):
-    (
-        MAX_WIDTH,
-        MAX_HEIGHT,
-        MAX_SIZE,
-        DEFAULT_QUALITY,
-        STRICT_QUALITY,
-        LOW_QUALITY_THRESHOLD,
-        LOW_QUALITY_TOKEN_THRESHOLD,
-        ALLOWED_MODEL,
-        ALLOWED_EXTENSIONS,
-        DISCORD_URL_ALLOWED,
-    ) = map(
-        GLOBAL_OPTIONS.get,
-        (
-            "max_image_width",
-            "max_image_height",
-            "max_image_file_size",
-            "default_image_quality",
-            "strict_image_quality",
-            "low_quality_threshold",
-            "low_quality_token_threshold",
-            "allowed_image_models",
-            "allowed_image_extensions",
-            "discord_url_allowed",
-        ),
-    )
-
     def __init__(
         self,
         attachment: Attachment,
         *,
-        quality: str = DEFAULT_QUALITY,
+        quality: str = attachment_policy.default_image_quality,
         strict: bool = False,
     ):
         super().__init__(attachment)
 
         self._strict = strict
-        if not strict and self.STRICT_QUALITY is not None:
-            self._quality = self.STRICT_QUALITY
+        if not strict and attachment_policy.strict_image_quality is not None:
+            self._quality = attachment_policy.strict_image_quality
         else:
             self._quality = quality
             if not strict:
                 width, height = attachment.width, attachment.height
                 cost = self.calc_openai_tokens(width, height, quality=quality)
 
-                if max(width, height) > self.LOW_QUALITY_THRESHOLD:
+                if max(width, height) > attachment_policy.low_quality_threshold:
                     self._quality = "low"
-                if cost > self.LOW_QUALITY_TOKEN_THRESHOLD:
+                if cost > attachment_policy.low_quality_token_threshold:
                     self._quality = "low"
 
         self._tokens = self.calc_openai_tokens(
@@ -150,18 +119,14 @@ class GPTImageAttachment(DiscordAttachment):
 
     @staticmethod
     def calc_openai_tokens(width, height, *, quality: str):
-        from options import OPENAI_DEFAULT_IMAGE_COST, OPENAI_IMAGE_BLOCK_COST
-
-        default_cost, block_cost = OPENAI_DEFAULT_IMAGE_COST, OPENAI_IMAGE_BLOCK_COST
-
         if width == 0 and height == 0:
             return 0
         elif quality == "low":
-            return default_cost
+            return openai_settings.OPENAI_DEFAULT_IMAGE_COST
         elif quality == "high":
-            cost = default_cost
+            cost = openai_settings.OPENAI_DEFAULT_IMAGE_COST
             if max(width, height) <= 512:
-                return cost + block_cost
+                return cost + openai_settings.OPENAI_IMAGE_BLOCK_COST
 
             ratio, ratio_inv = width / height, height / width
 
@@ -176,18 +141,30 @@ class GPTImageAttachment(DiscordAttachment):
                     width = height = 2048
 
             if min(width, height) <= 768:
-                cost += block_cost * math.ceil(width / 512) * math.ceil(width / 512)
+                cost += (
+                    openai_settings.OPENAI_IMAGE_BLOCK_COST
+                    * math.ceil(width / 512)
+                    * math.ceil(width / 512)
+                )
             elif ratio > 1:
-                cost += block_cost * 2 * math.ceil(math.floor(768 * ratio) / 512)
+                cost += (
+                    openai_settings.OPENAI_IMAGE_BLOCK_COST
+                    * 2
+                    * math.ceil(math.floor(768 * ratio) / 512)
+                )
             elif ratio < 1:
-                cost += block_cost * 2 * math.ceil(math.floor(768 * ratio_inv) / 512)
+                cost += (
+                    openai_settings.OPENAI_IMAGE_BLOCK_COST
+                    * 2
+                    * math.ceil(math.floor(768 * ratio_inv) / 512)
+                )
             else:
-                cost += block_cost * 4
+                cost += openai_settings.OPENAI_IMAGE_BLOCK_COST * 4
 
             return cost
         elif quality == "auto":
             if width <= 512 and height <= 512:
-                return default_cost
+                return openai_settings.OPENAI_DEFAULT_IMAGE_COST
             else:
                 return GPTImageAttachment.calc_openai_tokens(
                     width, height, quality="high"
@@ -209,13 +186,13 @@ class GPTImageAttachment(DiscordAttachment):
 
     def check_error(self):
         att = self.attachment
-        if not att.filename.endswith(self.ALLOWED_EXTENSIONS):
+        if not att.filename.endswith(attachment_policy.allowed_image_extensions):
             return ValueError(
-                f"Only supported extensions in image files are {humanize_tuple(self.ALLOWED_EXTENSIONS)}."
+                f"Only supported extensions in image files are {humanize_tuple(attachment_policy.allowed_image_extensions)}."
             )
-        elif att.size > self.MAX_SIZE:
+        elif att.size > attachment_policy.max_image_file_size:
             return ValueError(
-                f"Each image file's size cannot exceed { self.MAX_SIZE / (1024 ** 2):.1f } MB."
+                f"Each image file's size cannot exceed {attachment_policy.max_image_file_size / (1024 ** 2):.1f } MB."
             )
         elif att.width is None or att.height is None:
             return ValueError(f"Image not found: {att.filename}")
@@ -223,10 +200,12 @@ class GPTImageAttachment(DiscordAttachment):
             return ValueError(
                 f"Both width and height of an image '{att.filename}' must be positive."
             )
-        elif att.width > self.MAX_WIDTH or att.height > self.MAX_HEIGHT:
-            msg = (
-                f"The image size cannot be over {self.MAX_SIZE} x {self.MAX_HEIGHT} px."
-            )
+        elif (
+            att.width > attachment_policy.max_image_width
+            or att.height > attachment_policy.max_image_height
+        ):
+            msg = f"The image size cannot be over "
+            msg += f"{attachment_policy.max_image_file_size} x {attachment_policy.max_image_height} px."
             msg += f" ({att.filename}: {att.width}x{att.height})"
             return ValueError(msg)
 
@@ -242,7 +221,7 @@ class GPTImageAttachment(DiscordAttachment):
         # It doesn't seem like OpenAI image scrapper supports this hack.
         # So we supply base64 encoded image (* token cost is the same as URL).
         """
-        if self.DISCORD_URL_ALLOWED:
+        if attachment_policy.discord_url_allowed:
             content = {
                 "type": "image_url",
                 "image_url": {"url": self.attachment.url, "detail": self.quality},

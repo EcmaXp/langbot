@@ -28,28 +28,19 @@ from langchain_openai import ChatOpenAI
 
 from .attachment import *
 from .options import (
-    CHAT_POLICIES,
-    ATTACHMENT_POLICIES,
-    OPENAI_DEFAULT_IMAGE_COST,
+    chat_policy,
+    attachment_policy,
+    openai_settings,
 )
 
 __author__ = "EcmaXp <ecmaxp@ecmaxp.kr>"
 __version__ = "0.2"
 
-(
-    MAX_TOKENS,
-    MESSAGE_FETCH_LIMIT,
-    COMPRESS_THRESHOLD_PER_CHAT,
-    COMPRESS_THRESHOLD_PER_MSG,
-) = map(
-    CHAT_POLICIES.get,
-    (
-        "token_limit",
-        "message_fetch_limit",
-        "compress_threshold_per_chat",
-        "compress_threshold_per_message",
-    ),
-)
+
+MAX_TOKENS = chat_policy.token_limit
+MESSAGE_FETCH_LIMIT = chat_policy.message_fetch_limit
+COMPRESS_THRESHOLD_PER_CHAT = chat_policy.compress_threshold_per_chat
+COMPRESS_THRESHOLD_PER_MSG = chat_policy.compress_threshold_per_message
 TOKEN_MARKER_ATTR = "_pre_calc_tokens"
 
 
@@ -201,7 +192,7 @@ async def get_summary(message: BaseMessage):
         elif summary:
             message.content.append({"type": "text", "text": summary})
 
-    new_num_tokens += img_count * OPENAI_DEFAULT_IMAGE_COST
+    new_num_tokens += img_count * openai_settings.OPENAI_DEFAULT_IMAGE_COST
 
     print(f"Summarized: {old_num_tokens} -> {new_num_tokens} tokens")
     setattr(message, TOKEN_MARKER_ATTR, new_num_tokens)
@@ -350,9 +341,6 @@ class ChatGPT:
         return reply
 
     async def build_chat(self, message: hikari.Message) -> Chat:
-        msg_tol, cnt_tol = map(
-            CHAT_POLICIES.get, ("image_message_tolerance", "image_count_tolerance")
-        )
         bot_mention = self.bot.get_me().mention
 
         messages: list[BaseMessage] = []
@@ -375,7 +363,10 @@ class ChatGPT:
             if message.attachments:
                 group = await self.fetch_attachments(message)
 
-                if len(group.images) > cnt_tol or msg_index < len(fetched) - msg_tol:
+                if (
+                    len(group.images) > chat_policy.image_count_tolerance
+                    or msg_index < len(fetched) - chat_policy.image_message_tolerance
+                ):
                     for i in range(len(group.images)):
                         group.images[i] = GPTImageAttachment(
                             group.images[i].attachment, quality="low", strict=True
@@ -448,36 +439,18 @@ class ChatGPT:
 
     @alru_cache(maxsize=64, typed=True, ttl=3600)
     async def fetch_attachments(self, message: hikari.Message) -> AttachmentGroup:
-        total_max, txt_max, img_max = map(
-            CHAT_POLICIES.get,
-            (
-                "max_attachment_count",
-                "max_text_attachment_count",
-                "max_image_attachment_count",
-            ),
-        )
-
-        allowed_txt_ext, allowed_img_ext, allowed_img_models = map(
-            ATTACHMENT_POLICIES.get,
-            (
-                "allowed_text_extensions",
-                "allowed_image_extensions",
-                "allowed_image_models",
-            ),
-        )
-
-        if len(message.attachments) > total_max:
+        if len(message.attachments) > chat_policy.max_attachment_count:
             raise ValueError(
-                f"The total number of attachments cannot exceed {total_max}."
+                f"The total number of attachments cannot exceed {chat_policy.max_attachment_count}."
             )
 
         txt_pool, img_pool = [], []
         for attachment in message.attachments:
             name = attachment.filename
-            if name.endswith(allowed_txt_ext):
-                if len(txt_pool) > txt_max:
+            if name.endswith(chat_policy.allowed_text_extensions):
+                if len(txt_pool) > chat_policy.max_text_attachment_count:
                     raise ValueError(
-                        f"The number of text attachments cannot exceed {txt_max}."
+                        f"The number of text attachments cannot exceed {chat_policy.max_text_attachment_count}."
                     )
 
                 txt = TextAttachment(attachment)
@@ -487,11 +460,11 @@ class ChatGPT:
                 else:
                     txt_pool.append(TextAttachment(attachment))
 
-            if name.endswith(allowed_img_ext):
-                if self.chat_model.name in allowed_img_models:
-                    if len(img_pool) > img_max:
+            if name.endswith(chat_policy.allowed_image_extensions):
+                if self.chat_model.name in chat_policy.allowed_image_models:
+                    if len(img_pool) > chat_policy.max_image_attachment_count:
                         raise ValueError(
-                            f"The number of image attachments cannot exceed {img_max}."
+                            f"The number of image attachments cannot exceed {chat_policy.max_image_attachment_count}."
                         )
                     else:
                         img = GPTImageAttachment(attachment)
