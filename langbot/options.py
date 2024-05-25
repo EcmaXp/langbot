@@ -76,7 +76,7 @@ class AttachmentPolicy(BaseModel):
     # If this option is set, every request is fixed to this value.
     # However, the 'strict' argument in method is True, 'quality' argument in method has more priority than this value.
     # (default: None)
-    strict_image_quality: int | None = None
+    strict_image_quality: ImageQuality | None = None
     low_quality_threshold: int = 2 * K
     # 2x2 blocks in high quality
     low_quality_token_threshold: int = (
