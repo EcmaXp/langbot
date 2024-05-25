@@ -26,7 +26,7 @@ class ImageQuality(Enum, str):
 
 
 # Policies
-class ChatPolicy(BaseModel):
+class Policy(BaseModel):
     token_limit: int = 8 * K
     message_fetch_limit: int = 64
 
@@ -42,11 +42,6 @@ class ChatPolicy(BaseModel):
     # If there are more than N images per message, all images are forcibly degraded to low quality
     image_count_tolerance: int = 1
 
-
-chat_policy = ChatPolicy()
-
-
-class AttachmentPolicy(BaseModel):
     # Policies for text attachments
     allowed_text_extensions: tuple[str, ...] = (
         ".py",
@@ -88,4 +83,4 @@ class AttachmentPolicy(BaseModel):
     discord_url_allowed: int = False
 
 
-attachment_policy = AttachmentPolicy()
+policy = Policy()
