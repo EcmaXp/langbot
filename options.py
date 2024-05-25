@@ -1,4 +1,3 @@
-
 ## Constants
 K, M, G = 1024, 1024 ** 2, 1024 ** 3
 KB, MB, GB = K, M, G
@@ -25,7 +24,7 @@ CHAT_POLICIES = {
     # Images in last N messages hold their original quality, others are forcibly degraded to low quality
     "image_message_tolerance": 3,
     # If there are more than N images per message, all images are forcibly degraded to low quality
-    "image_count_tolerance": 1
+    "image_count_tolerance": 1,
 }
 
 ATTACHMENT_POLICIES = {
@@ -36,12 +35,11 @@ ATTACHMENT_POLICIES = {
     # Policies for text attachments
     "allowed_image_extensions": (".png", ".gif", ".jpg", ".jpeg", ".webp"),
     "allowed_image_models": ("gpt-4o", "gpt-4o-2024-05-13"),
-
     "max_image_file_size": 10 * MB,
     "max_image_width": 8 * K,
     "max_image_height": 8 * K,
-
     "default_image_quality": "auto",
+
     # If this option is set, every request is fixed to this value.
     # However, the 'strict' argument in method is True, 'quality' argument in method has more priority than this value.
     # (default: None)
@@ -51,5 +49,5 @@ ATTACHMENT_POLICIES = {
     "low_quality_token_threshold": 2 * 2 * OPENAI_IMAGE_BLOCK_COST + OPENAI_DEFAULT_IMAGE_COST,
 
     # Since Discord CDN may block bot-scrapping, this option should be able to be optional. (default: False)
-    "discord_url_allowed": False
+    "discord_url_allowed": False,
 }
