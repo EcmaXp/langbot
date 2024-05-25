@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-import math
 import base64
-
-from hikari import Attachment
+import math
 from abc import ABCMeta, abstractmethod
-from typing import List
-from PIL import Image
 from io import BytesIO
+from typing import List
 
-from utils import humanize_tuple
-from options import ATTACHMENT_POLICIES as GLOBAL_OPTIONS
+from PIL import Image
+from hikari import Attachment
+
+from .options import ATTACHMENT_POLICIES as GLOBAL_OPTIONS
+from .utils import humanize_tuple
 
 
 class AttachmentGroup:

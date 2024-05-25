@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 import tempfile
@@ -10,7 +9,7 @@ from datetime import datetime
 from decimal import Decimal
 from functools import cache
 from pathlib import Path
-from typing import List, Optional, cast
+from typing import Optional, cast
 
 import hikari
 import tiktoken
@@ -27,12 +26,12 @@ from langchain_core.prompts import (
 from langchain_core.runnables import Runnable, RunnablePassthrough
 from langchain_openai import ChatOpenAI
 
-from options import (
+from .attachment import *
+from .options import (
     CHAT_POLICIES,
     ATTACHMENT_POLICIES,
     OPENAI_DEFAULT_IMAGE_COST,
 )
-from chat.attachment import *
 
 __author__ = "EcmaXp <ecmaxp@ecmaxp.kr>"
 __version__ = "0.2"
