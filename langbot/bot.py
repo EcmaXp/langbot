@@ -54,12 +54,6 @@ __version__ = "0.2"
 TOKEN_MARKER_ATTR = "_pre_calc_tokens"
 
 
-if os.name != "nt":
-    import uvloop
-
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-
-
 def get_chat_model(chat_model_name: str) -> BaseChatModel:
     provider, chat_model_name = chat_model_name.split(":")
     if provider == "openai":
@@ -541,11 +535,3 @@ async def on_message_edit(event: hikari.MessageUpdateEvent):
 @bot.listen()
 async def on_message_delete(event: hikari.MessageDeleteEvent):
     await chatgpt.on_message_delete(event)
-
-
-def main():
-    bot.run()
-
-
-if __name__ == "__main__":
-    main()
