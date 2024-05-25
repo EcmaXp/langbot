@@ -32,7 +32,7 @@ class AttachmentGroup:
         content = []
 
         text = text_content
-        if len(self.texts) == 0:
+        if not self.texts:
             pass
         elif len(self.texts) == 1:
             text += "\n\n" + await self.texts[0].digest()
@@ -71,24 +71,22 @@ class DiscordAttachment(metaclass=ABCMeta):
 
 
 class TextAttachment(DiscordAttachment):
+    def __init__(self, attachment: Attachment):
+        super().__init__(attachment)
+        self.check_error()
+
     def check_error(self):
         att = self.attachment
         if not att.filename.endswith(attachment_policy.allowed_text_extensions):
-            return ValueError(
+            raise ValueError(
                 f"Only supported extensions in text files are {humanize_tuple(attachment_policy.allowed_text_extensions)}."
             )
         elif att.size > attachment_policy.max_text_file_size:
-            return ValueError(
+            raise ValueError(
                 f"File is too large to upload. It must be at most {attachment_policy.max_text_file_size // 1024} KB."
             )
 
-        return None
-
     async def digest(self) -> str:
-        err = self.check_error()
-        if err is not None:
-            raise err
-
         raw_data = await self.attachment.read()
         try:
             result = raw_data.decode("utf-8")
@@ -140,6 +138,8 @@ class GPTImageAttachment(DiscordAttachment):
         self._tokens = self.calc_openai_tokens(
             attachment.width, attachment.height, quality=self._quality
         )
+
+        self.check_error()
 
     @classmethod
     def determine_image_quality(
@@ -229,17 +229,17 @@ class GPTImageAttachment(DiscordAttachment):
     def check_error(self):
         att = self.attachment
         if not att.filename.endswith(attachment_policy.allowed_image_extensions):
-            return ValueError(
+            raise ValueError(
                 f"Only supported extensions in image files are {humanize_tuple(attachment_policy.allowed_image_extensions)}."
             )
         elif att.size > attachment_policy.max_image_file_size:
-            return ValueError(
+            raise ValueError(
                 f"Each image file's size cannot exceed {attachment_policy.max_image_file_size / (1024 ** 2):.1f } MB."
             )
         elif att.width is None or att.height is None:
-            return ValueError(f"Image not found: {att.filename}")
+            raise ValueError(f"Image not found: {att.filename}")
         elif att.width <= 0 or att.height <= 0:
-            return ValueError(
+            raise ValueError(
                 f"Both width and height of an image '{att.filename}' must be positive."
             )
         elif (
@@ -249,14 +249,10 @@ class GPTImageAttachment(DiscordAttachment):
             msg = f"The image size cannot be over "
             msg += f"{attachment_policy.max_image_file_size} x {attachment_policy.max_image_height} px."
             msg += f" ({att.filename}: {att.width}x{att.height})"
-            return ValueError(msg)
-
-        return None
+            raise ValueError(msg)
 
     async def digest(self) -> dict:
-        err = self.check_error()
-        if err is not None:
-            raise err
+        self.check_error()
 
         # Discord CDN URL is blocked by bot-scrapping so User-Agent opener hack is required.
         # It doesn't seem like OpenAI image scrapper supports this hack.

@@ -449,12 +449,7 @@ class ChatGPT:
                         f"The number of text attachments cannot exceed {chat_policy.max_text_attachment_count}."
                     )
 
-                txt = TextAttachment(attachment)
-                err = txt.check_error()
-                if err is not None:
-                    raise err
-                else:
-                    txt_pool.append(TextAttachment(attachment))
+                txt_pool.append(TextAttachment(attachment))
 
             if name.endswith(chat_policy.allowed_image_extensions):
                 if self.chat_model.name in chat_policy.allowed_image_models:
@@ -463,12 +458,7 @@ class ChatGPT:
                             f"The number of image attachments cannot exceed {chat_policy.max_image_attachment_count}."
                         )
                     else:
-                        img = GPTImageAttachment(attachment)
-                        err = img.check_error()
-                        if err is not None:
-                            raise err
-                        else:
-                            img_pool.append(GPTImageAttachment(attachment))
+                        img_pool.append(GPTImageAttachment(attachment))
 
         return AttachmentGroup(texts=txt_pool, images=img_pool)
 
