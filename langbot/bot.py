@@ -9,7 +9,7 @@ from datetime import datetime
 from decimal import Decimal
 from functools import cache
 from pathlib import Path
-from typing import Optional, cast, List
+from typing import cast
 
 import hikari
 import tiktoken
@@ -104,7 +104,7 @@ class Chat:
 
     async def ask(
         self,
-        text: Optional[str] = None,
+        text: str | None = None,
         *,
         max_tokens: int,
     ):
@@ -355,7 +355,7 @@ class ChatGPT:
                 else:
                     raise ValueError("Unknown role")
 
-            group: Optional[AttachmentGroup] = None
+            group: AttachmentGroup | None = None
             if message.attachments:
                 group = await self.fetch_attachments(message)
 
@@ -411,7 +411,7 @@ class ChatGPT:
         self,
         message: hikari.Message,
         limit: int,
-    ) -> List[hikari.Message]:
+    ) -> list[hikari.Message]:
         channel = await self.fetch_channel(message.channel_id)
         if not isinstance(channel, hikari.TextableChannel):
             raise ValueError("Not a text channel")

@@ -4,7 +4,6 @@ import base64
 import math
 from abc import ABCMeta, abstractmethod
 from io import BytesIO
-from typing import List
 
 from PIL import Image
 from hikari import Attachment
@@ -23,7 +22,7 @@ class AttachmentGroup:
         self.texts = texts
         self.images = images
 
-    async def export(self, text_content: str) -> List[dict]:
+    async def export(self, text_content: str) -> list[dict]:
         content = []
 
         text = text_content
