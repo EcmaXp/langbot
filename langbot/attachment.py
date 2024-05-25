@@ -15,7 +15,10 @@ from .utils import humanize_tuple
 
 class AttachmentGroup:
     def __init__(
-        self, *, texts: list[TextAttachment], images: list[GPTImageAttachment]
+        self,
+        *,
+        texts: list[TextAttachment],
+        images: list[GPTImageAttachment],
     ):
         self.texts = texts
         self.images = images
@@ -31,6 +34,7 @@ class AttachmentGroup:
         else:
             for txt in self.texts:
                 text += f"\n\n{txt.attachment.filename}:\n" + await txt.digest()
+
         if text:
             content.append({"type": "text", "text": text})
 
@@ -100,25 +104,33 @@ class GPTImageAttachment(DiscordAttachment):
         super().__init__(attachment)
 
         self._strict = strict
-        if not strict and attachment_policy.strict_image_quality is not None:
-            self._quality = attachment_policy.strict_image_quality
-        else:
-            self._quality = quality
-            if not strict:
-                width, height = attachment.width, attachment.height
-                cost = self.calc_openai_tokens(width, height, quality=quality)
-
-                if max(width, height) > attachment_policy.low_quality_threshold:
-                    self._quality = "low"
-                if cost > attachment_policy.low_quality_token_threshold:
-                    self._quality = "low"
-
+        self._quality = self.determine_image_quality(attachment, quality, strict)
         self._tokens = self.calc_openai_tokens(
             attachment.width, attachment.height, quality=self._quality
         )
 
-    @staticmethod
-    def calc_openai_tokens(width, height, *, quality: str):
+    @classmethod
+    def determine_image_quality(
+        cls, attachment: Attachment, quality: str, strict: bool
+    ):
+        if strict:
+            return quality
+
+        if attachment_policy.strict_image_quality:
+            return attachment_policy.strict_image_quality
+
+        width, height = attachment.width, attachment.height
+        cost = cls.calc_openai_tokens(width, height, quality=quality)
+
+        if max(width, height) > attachment_policy.low_quality_threshold:
+            return "low"
+        if cost > attachment_policy.low_quality_token_threshold:
+            return "low"
+
+        return quality
+
+    @classmethod
+    def calc_openai_tokens(cls, width, height, *, quality: str):
         if width == 0 and height == 0:
             return 0
         elif quality == "low":
@@ -166,9 +178,7 @@ class GPTImageAttachment(DiscordAttachment):
             if width <= 512 and height <= 512:
                 return openai_settings.OPENAI_DEFAULT_IMAGE_COST
             else:
-                return GPTImageAttachment.calc_openai_tokens(
-                    width, height, quality="high"
-                )
+                return cls.calc_openai_tokens(width, height, quality="high")
         else:
             return math.inf
 
@@ -216,11 +226,9 @@ class GPTImageAttachment(DiscordAttachment):
         if err is not None:
             raise err
 
-        """
         # Discord CDN URL is blocked by bot-scrapping so User-Agent opener hack is required.
         # It doesn't seem like OpenAI image scrapper supports this hack.
         # So we supply base64 encoded image (* token cost is the same as URL).
-        """
         if attachment_policy.discord_url_allowed:
             content = {
                 "type": "image_url",
