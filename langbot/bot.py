@@ -9,7 +9,7 @@ from datetime import datetime
 from decimal import Decimal
 from functools import cache
 from pathlib import Path
-from typing import Optional, cast
+from typing import Optional, cast, List
 
 import hikari
 import tiktoken
@@ -26,12 +26,8 @@ from langchain_core.prompts import (
 from langchain_core.runnables import Runnable, RunnablePassthrough
 from langchain_openai import ChatOpenAI
 
-from .attachment import *
-from .options import (
-    chat_policy,
-    attachment_policy,
-    openai_settings,
-)
+from .attachment import AttachmentGroup, GPTImageAttachment, TextAttachment
+from .options import chat_policy, openai_settings
 
 __author__ = "EcmaXp <ecmaxp@ecmaxp.kr>"
 __version__ = "0.2"
