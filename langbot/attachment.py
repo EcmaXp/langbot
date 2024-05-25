@@ -14,7 +14,7 @@ from pydantic import BaseModel, field_validator
 from PIL import Image
 from hikari import Attachment
 
-from .options import openai_settings, attachment_policy
+from .options import openai_settings, attachment_policy, ImageQuality
 from .utils import humanize_tuple
 
 
@@ -128,7 +128,7 @@ class GPTImageAttachment(DiscordAttachment):
         self,
         attachment: Attachment,
         *,
-        quality: str = attachment_policy.default_image_quality,
+        quality: ImageQuality = attachment_policy.default_image_quality,
         strict: bool = False,
     ):
         super().__init__(attachment)
@@ -143,7 +143,10 @@ class GPTImageAttachment(DiscordAttachment):
 
     @classmethod
     def determine_image_quality(
-        cls, attachment: Attachment, quality: str, strict: bool
+        cls,
+        attachment: Attachment,
+        quality: ImageQuality,
+        strict: bool,
     ):
         if strict:
             return quality
@@ -152,22 +155,22 @@ class GPTImageAttachment(DiscordAttachment):
             return attachment_policy.strict_image_quality
 
         width, height = attachment.width, attachment.height
-        cost = cls.calc_openai_tokens(width, height, quality=quality)
+        cost = cls.calc_openai_tokens(width, height, quality)
 
         if max(width, height) > attachment_policy.low_quality_threshold:
-            return "low"
+            return ImageQuality.Low
         if cost > attachment_policy.low_quality_token_threshold:
-            return "low"
+            return ImageQuality.Low
 
         return quality
 
     @classmethod
-    def calc_openai_tokens(cls, width, height, *, quality: str):
+    def calc_openai_tokens(cls, width, height, quality: ImageQuality):
         if width == 0 and height == 0:
             return 0
-        elif quality == "low":
+        elif quality == ImageQuality.Low:
             return openai_settings.OPENAI_DEFAULT_IMAGE_COST
-        elif quality == "high":
+        elif quality == ImageQuality.High:
             cost = openai_settings.OPENAI_DEFAULT_IMAGE_COST
             if max(width, height) <= 512:
                 return cost + openai_settings.OPENAI_IMAGE_BLOCK_COST
@@ -206,11 +209,11 @@ class GPTImageAttachment(DiscordAttachment):
                 cost += openai_settings.OPENAI_IMAGE_BLOCK_COST * 4
 
             return cost
-        elif quality == "auto":
+        elif quality == ImageQuality.Auto:
             if width <= 512 and height <= 512:
                 return openai_settings.OPENAI_DEFAULT_IMAGE_COST
             else:
-                return cls.calc_openai_tokens(width, height, quality="high")
+                return cls.calc_openai_tokens(width, height, quality=ImageQuality.High)
         else:
             return math.inf
 

@@ -27,7 +27,7 @@ from langchain_core.runnables import Runnable, RunnablePassthrough
 from langchain_openai import ChatOpenAI
 
 from .attachment import AttachmentGroup, GPTImageAttachment, TextAttachment
-from .options import chat_policy, openai_settings
+from .options import chat_policy, openai_settings, ImageQuality
 
 __author__ = "EcmaXp <ecmaxp@ecmaxp.kr>"
 __version__ = "0.2"
@@ -365,7 +365,9 @@ class ChatGPT:
                 ):
                     for i in range(len(group.images)):
                         group.images[i] = GPTImageAttachment(
-                            group.images[i].attachment, quality="low", strict=True
+                            group.images[i].attachment,
+                            quality=ImageQuality.Low,
+                            strict=True,
                         )
 
             msg_type = {

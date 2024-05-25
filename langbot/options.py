@@ -1,3 +1,5 @@
+from enum import Enum
+
 from pydantic import BaseModel
 
 # Constants
@@ -15,6 +17,12 @@ class OpenAISettings(BaseModel):
 
 
 openai_settings = OpenAISettings()
+
+
+class ImageQuality(Enum, str):
+    Low = "low"
+    High = "high"
+    Auto = "auto"
 
 
 # Policies
@@ -63,7 +71,7 @@ class AttachmentPolicy(BaseModel):
     max_image_file_size: int = 10 * MB
     max_image_width: int = 8 * K
     max_image_height: int = 8 * K
-    default_image_quality: str = "auto"
+    default_image_quality: ImageQuality = ImageQuality.Auto
 
     # If this option is set, every request is fixed to this value.
     # However, the 'strict' argument in method is True, 'quality' argument in method has more priority than this value.
