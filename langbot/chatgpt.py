@@ -7,7 +7,7 @@ from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
 from decimal import Decimal
-from functools import cache
+from functools import cache, cached_property
 from pathlib import Path
 from typing import cast
 
@@ -27,7 +27,7 @@ from langchain_core.runnables import Runnable, RunnablePassthrough
 from langchain_openai import ChatOpenAI
 
 from .attachment import AttachmentGroup, GPTImageAttachment, TextAttachment
-from .options import policy, openai_settings, ImageQuality
+from .options import policy, openai_settings, ImageQuality, Settings
 
 MAX_TOKENS = policy.token_limit
 MESSAGE_FETCH_LIMIT = policy.message_fetch_limit
@@ -127,7 +127,9 @@ class Chat:
                 tokens += get_text_tokens(self.chat_model, message.content)
             elif isinstance(message.content, dict):
                 # TODO: implement this
-                raise NotImplementedError("Calculating tokens in multimedia responds is not implemented.")
+                raise NotImplementedError(
+                    "Calculating tokens in multimedia responds is not implemented."
+                )
 
         return tokens
 
@@ -200,15 +202,20 @@ async def get_summary(message: BaseMessage):
 
 
 class ChatGPT:
-    def __init__(self, bot: hikari.GatewayBot, config: dict):
+    # noinspection PyShadowingNames
+    def __init__(self, bot: hikari.GatewayBot, settings: Settings):
         self.bot = bot
-        self.config = config
-        self.chat_model = get_chat_model(config["chat_model"])
+        self.state = {}
+        self.settings = settings
         self.cached_channels = {}
         self.cached_messages = defaultdict(dict)
         self.cached_reply_ids: dict[int, set] = defaultdict(set)
-        config.setdefault("total_tokens", 0)
-        config.setdefault("total_cost", 0)
+        self.state.setdefault("total_tokens", 0)
+        self.state.setdefault("total_cost", 0)
+
+    @cached_property
+    def chat_model(self):
+        return get_chat_model(self.settings.chat_model)
 
     @property
     def bot_id(self):
@@ -281,8 +288,8 @@ class ChatGPT:
                     answer = await chat.ask(max_tokens=8192)
                     await self.reply(message, answer)
 
-                self.config["total_tokens"] += cb.total_tokens or chat.get_tokens()
-                self.config["total_cost"] += cb.total_cost or (
+                self.state["total_tokens"] += cb.total_tokens or chat.get_tokens()
+                self.state["total_cost"] += cb.total_cost or (
                     chat.get_tokens()
                     * Decimal(os.environ.get("LANGBOT_COST_PER_TOKEN", "0.0001"))
                 )
@@ -310,9 +317,9 @@ class ChatGPT:
             )
 
     async def update_presence(self):
-        chat_model_name = self.config["chat_model"]
-        total_tokens = self.config["total_tokens"]
-        total_cost = self.config["total_cost"]
+        chat_model_name = self.settings.chat_model
+        total_tokens = self.state["total_tokens"]
+        total_cost = self.state["total_cost"]
         await self.bot.update_presence(
             activity=hikari.Activity(
                 type=hikari.ActivityType.PLAYING,
@@ -453,7 +460,7 @@ class ChatGPT:
             if attachment.filename.endswith(policy.allowed_text_extensions)
         ]
 
-        _, model_name = self.config["chat_model"].split(":")
+        _, model_name = self.settings.chat_model.split(":")
         if model_name in policy.allowed_image_models:
             image_attachments = [
                 attachment

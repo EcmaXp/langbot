@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: langbot-policy
+  namespace: langbot
+  labels:
+    app: langbot
+data:
+  MAX_TEXT_FILE_SIZE: "10KB"

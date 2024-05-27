@@ -1,6 +1,7 @@
 import enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr, ByteSize
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Constants
 K, M, G = 1024, 1024**2, 1024**3
@@ -9,7 +10,7 @@ KB, MB, GB = K, M, G
 
 class OpenAISettings(BaseModel):
     # Officially OpenAI API restricts 20MB per image
-    API_MAX_IMAGE_SIZE: int = 20 * MB
+    API_MAX_IMAGE_SIZE: ByteSize = ByteSize(20 * MB)
 
     # Current price of OpenAI image vision API (Price may be changed).
     OPENAI_DEFAULT_IMAGE_COST: int = 85
@@ -28,11 +29,11 @@ class ImageQuality(str, enum.Enum):
 
 # Policies
 class Policy(BaseModel):
-    token_limit: int = 8 * K
+    token_limit: ByteSize = ByteSize(8 * K)
     message_fetch_limit: int = 64
 
-    compress_threshold_per_chat: int = 4 * K
-    compress_threshold_per_message: int = 2 * K
+    compress_threshold_per_chat: ByteSize = ByteSize(4 * K)
+    compress_threshold_per_message: ByteSize = ByteSize(2 * K)
 
     max_attachment_count: int = 3
     max_text_attachment_count: int = 2
@@ -50,7 +51,7 @@ class Policy(BaseModel):
         ".log",
         ".md",
     )
-    max_text_file_size: int = 3 * K
+    max_text_file_size: ByteSize = ByteSize(3 * K)
 
     # Policies for text attachments
     allowed_image_extensions: tuple[str, ...] = (
@@ -64,16 +65,16 @@ class Policy(BaseModel):
         "gpt-4o",
         "gpt-4o-2024-05-13",
     )
-    max_image_file_size: int = 10 * MB
-    max_image_width: int = 8 * K
-    max_image_height: int = 8 * K
+    max_image_file_size: ByteSize = ByteSize(10 * MB)
+    max_image_width: ByteSize = ByteSize(8 * K)
+    max_image_height: ByteSize = ByteSize(8 * K)
     default_image_quality: ImageQuality = ImageQuality.Auto
 
     # If this option is set, every request is fixed to this value.
     # However, the 'strict' argument in method is True, 'quality' argument in method has more priority than this value.
     # (default: None)
     strict_image_quality: ImageQuality | None = None
-    low_quality_threshold: int = 2 * K
+    low_quality_threshold: ByteSize = ByteSize(2 * K)
     # 2x2 blocks in high quality
     low_quality_token_threshold: int = (
         2 * 2 * openai_settings.OPENAI_IMAGE_BLOCK_COST
@@ -84,4 +85,17 @@ class Policy(BaseModel):
     discord_url_allowed: bool = True
 
 
-policy = Policy()
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="LANGBOT_",
+    )
+
+    discord_token: SecretStr
+    chat_model: str
+
+    # Policies
+    policy: Policy = Policy()
+
+
+settings = Settings()
+policy = settings.policy

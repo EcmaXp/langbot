@@ -35,6 +35,9 @@ spec:
             - name: LANGBOT_CHAT_MODEL
               value: "openai:gpt-4o"
           envFrom:
+            - configMapRef:
+                name: langbot-policy
+              prefix: LANGBOT_POLICY_
             - secretRef:
                 name: langbot-secret-gpt-4o
 ---

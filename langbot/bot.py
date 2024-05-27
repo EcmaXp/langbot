@@ -1,19 +1,15 @@
-import os
-
 import hikari
 
 from langbot.chatgpt import ChatGPT
+from langbot.options import settings
 
 bot = hikari.GatewayBot(
-    os.environ.get("DISCORD_TOKEN"),
+    settings.discord_token.get_secret_value(),
     intents=hikari.Intents.ALL_MESSAGES | hikari.Intents.MESSAGE_CONTENT,
 )
 
 
-chatgpt = ChatGPT(
-    bot,
-    {"chat_model": os.environ["LANGBOT_CHAT_MODEL"]},
-)
+chatgpt = ChatGPT(bot, settings)
 
 
 @bot.listen()

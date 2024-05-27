@@ -35,6 +35,9 @@ spec:
             - name: LANGBOT_CHAT_MODEL
               value: "anthropic:claude-3-opus-20240229"
           envFrom:
+            - configMapRef:
+                name: langbot-policy
+              prefix: LANGBOT_POLICY_
             - secretRef:
                 name: langbot-secret-claude
 ---
