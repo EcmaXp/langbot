@@ -7,17 +7,18 @@ authors = ["ecmaxp <ecmaxp@ecmaxp.kr>"]
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
 hikari = {extras = ["speedups"], version = "^2.0.0.dev123"}
-langchain = "^0.1.14"
-langchain-core = "^0.1.40"
-langchain-community = "^0.0.31"
+langchain = "^0.2.1"
+langchain-core = "^0.2.1"
+langchain-community = "^0.2.1"
 langchain-openai = "^0.1.1"
 langchain-anthropic = "^0.1.6"
-langchain-google-genai = "^1.0.1"
+langchain-google-genai = "^1.0.5"
 uvloop = { version = "^0.19.0", markers = "sys_platform != 'win32' and sys_platform != 'cygwin' and platform_python_implementation != 'PyPy'" }
 async-lru = "^2.0.4"
 transformers = "^4.39.3"
 pillow = "^10.3.0"
 pydantic = "^2.7.1"
+pydantic-settings = "^2.2.1"
 
 
 [tool.poetry.group.dev.dependencies]
