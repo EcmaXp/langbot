@@ -88,12 +88,11 @@ class Policy(BaseModel):
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="LANGBOT_",
+        env_nested_delimiter="__",
     )
 
     discord_token: SecretStr
     chat_model: str
-
-    # Policies
     policy: Policy = Policy()
 
 

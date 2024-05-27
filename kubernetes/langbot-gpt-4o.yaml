@@ -37,7 +37,7 @@ spec:
           envFrom:
             - configMapRef:
                 name: langbot-policy
-              prefix: LANGBOT_POLICY_
+              prefix: LANGBOT_POLICY__
             - secretRef:
                 name: langbot-secret-gpt-4o
 ---
