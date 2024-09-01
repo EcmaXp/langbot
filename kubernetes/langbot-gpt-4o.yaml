@@ -19,6 +19,7 @@ spec:
         app: langbot
         model: gpt-4o
     spec:
+      serviceAccountName: langbot-openai
       terminationGracePeriodSeconds: 5
       containers:
         - name: langbot
@@ -41,5 +42,41 @@ spec:
                 name: langbot-policy
               prefix: LANGBOT_POLICY__
             - secretRef:
-                name: langbot-secret-gpt-4o
+                name: langbot-openai
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: langbot-openai
+  namespace: langbot
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: langbot-openai
+  namespace: langbot
+spec:
+  vaultConnectionRef: vault/vault-connection
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: app-langbot-langbot-openai
+    serviceAccount: langbot-openai
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultDynamicSecret
+metadata:
+  name: langbot-openai
+  namespace: langbot
+spec:
+  vaultAuthRef: langbot-openai
+  mount: op
+  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-openai
+  refreshAfter: 60s
+  destination:
+    create: true
+    name: langbot-openai
+    transformation:
+      includes:
+        - LANGBOT_DISCORD_TOKEN
+        - OPENAI_API_KEY

@@ -19,6 +19,7 @@ spec:
         app: langbot
         model: gemini-pro
     spec:
+      serviceAccountName: langbot-gemini
       terminationGracePeriodSeconds: 5
       containers:
         - name: langbot
@@ -39,5 +40,42 @@ spec:
                 name: langbot-policy
               prefix: LANGBOT_POLICY__
             - secretRef:
-                name: langbot-secret-gemini
+                name: langbot-gemini
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: langbot-gemini
+  namespace: langbot
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: langbot-gemini
+  namespace: langbot
+spec:
+  vaultConnectionRef: vault/vault-connection
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: app-langbot-langbot-gemini
+    serviceAccount: langbot-gemini
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultDynamicSecret
+metadata:
+  name: langbot-gemini
+  namespace: langbot
+spec:
+  vaultAuthRef: langbot-gemini
+  mount: op
+  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-gemini
+  refreshAfter: 60s
+  destination:
+    create: true
+    name: langbot-gemini
+    transformation:
+      includes:
+        - LANGBOT_DISCORD_TOKEN
+        - GOOGLE_API_KEY
+        - OPENAI_API_KEY

@@ -19,6 +19,7 @@ spec:
         app: langbot
         model: claude-3-opus
     spec:
+      serviceAccountName: langbot-claude
       terminationGracePeriodSeconds: 5
       containers:
         - name: langbot
@@ -39,5 +40,42 @@ spec:
                 name: langbot-policy
               prefix: LANGBOT_POLICY__
             - secretRef:
-                name: langbot-secret-claude
+                name: langbot-claude
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: langbot-claude
+  namespace: langbot
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: langbot-claude
+  namespace: langbot
+spec:
+  vaultConnectionRef: vault/vault-connection
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: app-langbot-langbot-claude
+    serviceAccount: langbot-claude
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultDynamicSecret
+metadata:
+  name: langbot-claude
+  namespace: langbot
+spec:
+  vaultAuthRef: langbot-claude
+  mount: op
+  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-claude
+  refreshAfter: 60s
+  destination:
+    create: true
+    name: langbot-claude
+    transformation:
+      includes:
+        - LANGBOT_DISCORD_TOKEN
+        - ANTHROPIC_API_KEY
+        - OPENAI_API_KEY
