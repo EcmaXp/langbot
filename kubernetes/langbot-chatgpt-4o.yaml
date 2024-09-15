@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: langbot-gpt-4o
+  name: langbot-chatgpt-4o
   namespace: langbot
   labels:
     app: langbot
-    model: gpt-4o
+    model: chatgpt-4o
 spec:
-  serviceName: langbot-gpt-4o
+  serviceName: langbot-chatgpt-4o
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: gpt-4o
+      model: chatgpt-4o
   template:
     metadata:
       labels:
         app: langbot
-        model: gpt-4o
+        model: chatgpt-4o
     spec:
       serviceAccountName: langbot-openai
       terminationGracePeriodSeconds: 5
@@ -34,9 +34,9 @@ spec:
               memory: 512M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "openai:gpt-4o-2024-08-06"
+              value: "openai:chatgpt-4o-latest"
             - name: LANGBOT_POLICY__ALLOWED_IMAGE_MODELS
-              value: '["gpt-4o-2024-08-06"]'
+              value: '["gpt-4o-2024-08-06", "chatgpt-4o-latest"]'
           envFrom:
             - configMapRef:
                 name: langbot-policy
