@@ -1,29 +1,34 @@
-[tool.poetry]
+[project]
 name = "langbot"
-version = "0.1.0"
+version = "0.2.0"
 description = ""
-authors = ["ecmaxp <ecmaxp@ecmaxp.kr>"]
+authors = [{ name = "EcmaXp", email = "ecmaxp@ecmaxp.kr" }]
+requires-python = ">=3.12"
+dependencies = [
+    "hikari[speedups]>=2.0.0.dev123",
+    "langchain>=0.2.1",
+    "langchain-core>=0.2.1",
+    "langchain-community>=0.2.1",
+    "langchain-openai>=0.1.1",
+    "langchain-anthropic>=0.1.6",
+    "langchain-google-genai>=1.0.5",
+    "uvloop>=0.19.0",
+    "async-lru>=2.0.4",
+    "transformers>=4.39.3",
+    "pillow>=10.3.0",
+    "pydantic>=2.7.1",
+    "pydantic-settings>=2.2.1",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.12,<3.13"
-hikari = {extras = ["speedups"], version = "^2.0.0.dev123"}
-langchain = "^0.2.1"
-langchain-core = "^0.2.1"
-langchain-community = "^0.2.1"
-langchain-openai = "^0.1.1"
-langchain-anthropic = "^0.1.6"
-langchain-google-genai = "^1.0.5"
-uvloop = { version = "^0.19.0", markers = "sys_platform != 'win32' and sys_platform != 'cygwin' and platform_python_implementation != 'PyPy'" }
-async-lru = "^2.0.4"
-transformers = "^4.39.3"
-pillow = "^10.3.0"
-pydantic = "^2.7.1"
-pydantic-settings = "^2.2.1"
+[tool.uv]
+dev-dependencies = ["reloader-py>=0.12.3"]
 
-
-[tool.poetry.group.dev.dependencies]
-"reloader.py" = "^0.12.3"
+[project.scripts]
+langbot = "langbot.__main__:main"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["langbot"]
