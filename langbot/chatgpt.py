@@ -27,7 +27,7 @@ from langchain_core.runnables import Runnable, RunnablePassthrough
 from langchain_openai import ChatOpenAI
 
 from .attachment import AttachmentGroup, GPTImageAttachment, TextAttachment
-from .options import ImageQuality, Settings, openai_settings, policy
+from .options import ImageQuality, Settings, openai_settings, policy, settings
 
 MAX_TOKENS = policy.token_limit
 MESSAGE_FETCH_LIMIT = policy.message_fetch_limit
@@ -64,11 +64,20 @@ def get_chat_model(chat_model_name: str) -> BaseChatModel:
         raise ValueError("Unknown provider")
 
 
-def get_text_tokens(chat_model: BaseChatModel, text: str) -> int:
-    if isinstance(chat_model, ChatOpenAI):
-        return _get_num_text_tokens_openai(chat_model.model_name, text)
-    elif type(chat_model).__name__ == "ChatGoogleGenerativeAI":
-        return _get_num_text_tokens_openai("gpt-4-turbo-preview", text)  # fallback
+def get_text_tokens(
+    chat_model: BaseChatModel,
+    text: str,
+    *,
+    tiktoken_model: str | None = None,
+) -> int:
+    if not tiktoken_model:
+        if isinstance(chat_model, ChatOpenAI):
+            tiktoken_model = chat_model.model_name
+        elif type(chat_model).__name__ == "ChatGoogleGenerativeAI":
+            tiktoken_model = "gpt-4-turbo-preview"  # fallback
+
+    if tiktoken_model:
+        return _get_num_text_tokens_openai(tiktoken_model, text)
     else:
         return chat_model.get_num_tokens(text)
 
@@ -84,9 +93,11 @@ class Chat:
         self,
         history: list[BaseMessage],
         chat_model: BaseChatModel,
+        settings: Settings,
     ):
         self.history = history
         self.chat_model = chat_model
+        self.settings = settings
 
     def build_chat_chain(self) -> Runnable:
         return (
@@ -124,7 +135,11 @@ class Chat:
             if hasattr(message, TOKEN_MARKER_ATTR):
                 tokens += getattr(message, TOKEN_MARKER_ATTR)
             elif isinstance(message.content, str):
-                tokens += get_text_tokens(self.chat_model, message.content)
+                tokens += get_text_tokens(
+                    self.chat_model,
+                    message.content,
+                    tiktoken_model=self.settings.tiktoken_model,
+                )
             elif isinstance(message.content, dict):
                 # TODO: implement this
                 raise NotImplementedError(
@@ -134,7 +149,7 @@ class Chat:
         return tokens
 
     def copy(self):
-        return Chat(deepcopy(self.history), self.chat_model)
+        return Chat(deepcopy(self.history), self.chat_model, self.settings)
 
     async def compress_large_messages(
         self,
@@ -188,7 +203,11 @@ async def get_summary(message: BaseMessage):
 
     if text:
         summary = await chain.ainvoke({"input": text})
-        new_num_tokens += get_text_tokens(chat_model, summary)
+        new_num_tokens += get_text_tokens(
+            chat_model,
+            summary,
+            tiktoken_model=settings.tiktoken_model,
+        )
 
         if isinstance(message.content, str):
             message.content = summary
@@ -395,7 +414,11 @@ class ChatGPT:
                 # Text tokens
                 for item in content:
                     if item["type"] == "text":
-                        total_tokens += get_text_tokens(self.chat_model, item["text"])
+                        total_tokens += get_text_tokens(
+                            self.chat_model,
+                            item["text"],
+                            tiktoken_model=self.settings.tiktoken_model,
+                        )
 
                 # Image tokens
                 total_tokens += sum(img.tokens for img in group.images)
@@ -408,7 +431,11 @@ class ChatGPT:
             else:
                 if not text:
                     text = "-" if messages else "hello"
-                total_tokens = get_text_tokens(self.chat_model, text)
+                total_tokens = get_text_tokens(
+                    self.chat_model,
+                    text,
+                    tiktoken_model=self.settings.tiktoken_model,
+                )
                 if total_tokens > MAX_TOKENS:
                     raise ValueError("Text is too long to read.")
                 msg = msg_type[role](text)
@@ -419,7 +446,7 @@ class ChatGPT:
             else:
                 messages.append(msg)
 
-        return Chat(messages, self.chat_model)
+        return Chat(messages, self.chat_model, self.settings)
 
     async def fetch_all_messages(
         self,

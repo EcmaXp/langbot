@@ -35,6 +35,8 @@ spec:
           env:
             - name: LANGBOT_CHAT_MODEL
               value: "openai:chatgpt-4o-latest"
+            - name: LANGBOT_TIKTOKEN_MODEL
+              value: "gpt-4o-2024-08-06"
             - name: LANGBOT_POLICY__ALLOWED_IMAGE_MODELS
               value: '["gpt-4o-2024-08-06", "chatgpt-4o-latest"]'
           envFrom:
