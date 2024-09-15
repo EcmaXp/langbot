@@ -1,6 +1,6 @@
 import enum
 
-from pydantic import BaseModel, SecretStr, ByteSize
+from pydantic import BaseModel, ByteSize, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Constants

@@ -6,11 +6,11 @@ import re
 from abc import ABCMeta, abstractmethod
 from io import BytesIO
 
-from PIL import Image
 from hikari import Attachment
+from PIL import Image
 from pydantic import BaseModel, field_validator
 
-from .options import openai_settings, policy, ImageQuality
+from .options import ImageQuality, openai_settings, policy
 from .utils import humanize_tuple
 
 

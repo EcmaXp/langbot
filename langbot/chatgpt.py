@@ -20,14 +20,14 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import (
     ChatPromptTemplate,
-    MessagesPlaceholder,
     HumanMessagePromptTemplate,
+    MessagesPlaceholder,
 )
 from langchain_core.runnables import Runnable, RunnablePassthrough
 from langchain_openai import ChatOpenAI
 
 from .attachment import AttachmentGroup, GPTImageAttachment, TextAttachment
-from .options import policy, openai_settings, ImageQuality, Settings
+from .options import ImageQuality, Settings, openai_settings, policy
 
 MAX_TOKENS = policy.token_limit
 MESSAGE_FETCH_LIMIT = policy.message_fetch_limit
