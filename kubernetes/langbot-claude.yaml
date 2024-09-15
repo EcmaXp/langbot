@@ -5,19 +5,19 @@ metadata:
   namespace: langbot
   labels:
     app: langbot
-    model: claude-3-opus
+    model: claude-3-5-sonnet
 spec:
   serviceName: langbot-claude
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: claude-3-opus
+      model: claude-3-5-sonnet
   template:
     metadata:
       labels:
         app: langbot
-        model: claude-3-opus
+        model: claude-3-5-sonnet
     spec:
       serviceAccountName: langbot-claude
       terminationGracePeriodSeconds: 5
@@ -34,7 +34,7 @@ spec:
               memory: 512M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "anthropic:claude-3-opus-20240229"
+              value: "anthropic:claude-3-5-sonnet-20240620"
           envFrom:
             - configMapRef:
                 name: langbot-policy
