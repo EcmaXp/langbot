@@ -34,6 +34,8 @@ spec:
           env:
             - name: LANGBOT_CHAT_MODEL
               value: "anthropic:claude-3-5-sonnet-20240620"
+            - name: LANGBOT_TIKTOKEN_MODEL
+              value: "gpt-4o-2024-08-06"
           envFrom:
             - configMapRef:
                 name: langbot-policy
