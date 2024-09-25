@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: langbot-claude
   namespace: langbot
@@ -7,7 +7,6 @@ metadata:
     app: langbot
     model: claude-3-5-sonnet
 spec:
-  serviceName: langbot-claude
   replicas: 1
   selector:
     matchLabels:
@@ -19,7 +18,7 @@ spec:
         app: langbot
         model: claude-3-5-sonnet
     spec:
-      serviceAccountName: langbot-claude
+      serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
       containers:
         - name: langbot
@@ -40,26 +39,9 @@ spec:
                 name: langbot-policy
               prefix: LANGBOT_POLICY__
             - secretRef:
+                name: langbot-openai
+            - secretRef:
                 name: langbot-claude
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: langbot-claude
-  namespace: langbot
----
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: langbot-claude
-  namespace: langbot
-spec:
-  vaultConnectionRef: vault/vault-connection
-  method: kubernetes
-  mount: kubernetes
-  kubernetes:
-    role: app-langbot-langbot-claude
-    serviceAccount: langbot-claude
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultDynamicSecret
@@ -67,7 +49,7 @@ metadata:
   name: langbot-claude
   namespace: langbot
 spec:
-  vaultAuthRef: langbot-claude
+  vaultAuthRef: langbot
   mount: op
   path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-claude
   refreshAfter: 60s
@@ -78,4 +60,3 @@ spec:
       includes:
         - LANGBOT_DISCORD_TOKEN
         - ANTHROPIC_API_KEY
-        - OPENAI_API_KEY

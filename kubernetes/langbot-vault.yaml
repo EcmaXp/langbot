@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: langbot
+  namespace: langbot
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: langbot
+  namespace: langbot
+spec:
+  vaultConnectionRef: vault/vault-connection
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: app-langbot-langbot
+    serviceAccount: langbot
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultDynamicSecret
+metadata:
+  name: langbot-openai
+  namespace: langbot
+spec:
+  vaultAuthRef: langbot
+  mount: op
+  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-openai
+  refreshAfter: 60s
+  destination:
+    create: true
+    name: langbot-openai
+    transformation:
+      includes:
+        - OPENAI_API_KEY

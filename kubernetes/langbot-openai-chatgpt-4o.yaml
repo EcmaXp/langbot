@@ -1,13 +1,12 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
-  name: langbot-chatgpt-4o
+  name: langbot-openai-chatgpt-4o
   namespace: langbot
   labels:
     app: langbot
     model: chatgpt-4o
 spec:
-  serviceName: langbot-chatgpt-4o
   replicas: 1
   selector:
     matchLabels:
@@ -19,7 +18,7 @@ spec:
         app: langbot
         model: chatgpt-4o
     spec:
-      serviceAccountName: langbot-openai
+      serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
       containers:
         - name: langbot
@@ -38,47 +37,29 @@ spec:
             - name: LANGBOT_TIKTOKEN_MODEL
               value: "gpt-4o-2024-08-06"
             - name: LANGBOT_POLICY__ALLOWED_IMAGE_MODELS
-              value: '["gpt-4o-2024-08-06", "chatgpt-4o-latest"]'
+              value: '["chatgpt-4o-2024-08-06"]'
           envFrom:
             - configMapRef:
                 name: langbot-policy
               prefix: LANGBOT_POLICY__
             - secretRef:
                 name: langbot-openai
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: langbot-openai
-  namespace: langbot
----
-apiVersion: secrets.hashicorp.com/v1beta1
-kind: VaultAuth
-metadata:
-  name: langbot-openai
-  namespace: langbot
-spec:
-  vaultConnectionRef: vault/vault-connection
-  method: kubernetes
-  mount: kubernetes
-  kubernetes:
-    role: app-langbot-langbot-openai
-    serviceAccount: langbot-openai
+            - secretRef:
+                name: langbot-openai-chatgpt-4o
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultDynamicSecret
 metadata:
-  name: langbot-openai
+  name: langbot-openai-chatgpt-4o
   namespace: langbot
 spec:
-  vaultAuthRef: langbot-openai
+  vaultAuthRef: langbot
   mount: op
-  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-openai
+  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-openai-chatgpt-4o
   refreshAfter: 60s
   destination:
     create: true
-    name: langbot-openai
+    name: langbot-openai-chatgpt-4o
     transformation:
       includes:
         - LANGBOT_DISCORD_TOKEN
-        - OPENAI_API_KEY
