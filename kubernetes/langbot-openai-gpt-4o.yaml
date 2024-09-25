@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: langbot-openai-chatgpt-4o
+  name: langbot-openai-gpt-4o
   namespace: langbot
   labels:
     app: langbot
-    model: chatgpt-4o
+    model: gpt-4o
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: chatgpt-4o
+      model: gpt-4o
   template:
     metadata:
       labels:
         app: langbot
-        model: chatgpt-4o
+        model: gpt-4o
     spec:
       serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
@@ -33,11 +33,11 @@ spec:
               memory: 512M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "openai:chatgpt-4o-latest"
+              value: "openai:gpt-4o-2024-08-06"
             - name: LANGBOT_TIKTOKEN_MODEL
               value: "gpt-4o-2024-08-06"
             - name: LANGBOT_POLICY__ALLOWED_IMAGE_MODELS
-              value: '["chatgpt-4o-2024-08-06"]'
+              value: '["gpt-4o-2024-08-06"]'
           envFrom:
             - configMapRef:
                 name: langbot-policy
@@ -45,21 +45,21 @@ spec:
             - secretRef:
                 name: langbot-openai
             - secretRef:
-                name: langbot-openai-chatgpt-4o
+                name: langbot-openai-gpt-4o
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultDynamicSecret
 metadata:
-  name: langbot-openai-chatgpt-4o
+  name: langbot-openai-gpt-4o
   namespace: langbot
 spec:
   vaultAuthRef: langbot
   mount: op
-  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-openai-chatgpt-4o
+  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-openai-gpt-4o
   refreshAfter: 60s
   destination:
     create: true
-    name: langbot-openai-chatgpt-4o
+    name: langbot-openai-gpt-4o
     transformation:
       includes:
         - LANGBOT_DISCORD_TOKEN
