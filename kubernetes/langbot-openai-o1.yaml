@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: langbot-openai-o1
+  namespace: langbot
+  labels:
+    app: langbot
+    model: o1-preview
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: langbot
+      model: o1-preview
+  template:
+    metadata:
+      labels:
+        app: langbot
+        model: o1-preview
+    spec:
+      serviceAccountName: langbot
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: langbot
+          image: registry-prod.deer-neon.ts.net/langbot:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 10m
+              memory: 512M
+            limits:
+              cpu: 1000m
+              memory: 512M
+          env:
+            - name: LANGBOT_CHAT_MODEL
+              value: "openai:o1-preview"
+            - name: LANGBOT_TIKTOKEN_MODEL
+              value: "gpt-4o-2024-08-06"
+            - name: LANGBOT_POLICY__ALLOWED_IMAGE_MODELS
+              value: "[]"
+          envFrom:
+            - configMapRef:
+                name: langbot-policy
+              prefix: LANGBOT_POLICY__
+            - configMapRef:
+                name: langbot-openai-o1-policy
+              prefix: LANGBOT_POLICY__
+            - secretRef:
+                name: langbot-openai
+            - secretRef:
+                name: langbot-openai-o1
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultDynamicSecret
+metadata:
+  name: langbot-openai-o1
+  namespace: langbot
+spec:
+  vaultAuthRef: langbot
+  mount: op
+  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-openai-o1
+  refreshAfter: 60s
+  destination:
+    create: true
+    name: langbot-openai-o1
+    transformation:
+      includes:
+        - LANGBOT_DISCORD_TOKEN
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: langbot-openai-o1-policy
+  namespace: langbot
+  labels:
+    app: langbot
+data:
+  TOKEN_LIMIT: "4KB"
+  COMPRESS_THRESHOLD_PER_CHAT: "8KB"
+  COMPRESS_THRESHOLD_PER_MESSAGE: "2KB"
+  MAX_TEXT_FILE_SIZE: "0KB"
+  MESSAGE_FETCH_LIMIT: "4"
+  MAX_ATTACHMENT_COUNT: "0"
+  MAX_TEXT_ATTACHMENT_COUNT: "0"
+  MAX_IMAGE_ATTACHMENT_COUNT: "0"
