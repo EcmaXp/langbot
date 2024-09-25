@@ -39,7 +39,10 @@ TOKEN_MARKER_ATTR = "__pre_calc_tokens"
 def get_chat_model(chat_model_name: str) -> BaseChatModel:
     provider, chat_model_name = chat_model_name.split(":")
     if provider == "openai":
-        return ChatOpenAI(model=chat_model_name)
+        return ChatOpenAI(
+            model=chat_model_name,
+            temperature=1 if chat_model_name.startswith("o") else 0.7,
+        )
     elif provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
