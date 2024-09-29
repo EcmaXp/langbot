@@ -37,16 +37,16 @@ TOKEN_MARKER_ATTR = "__pre_calc_tokens"
 
 
 def get_chat_model(chat_model_name: str) -> BaseChatModel:
-    provider, chat_model_name = chat_model_name.split(":")
+    provider, model_name = chat_model_name.split(":")
     if provider == "openai":
         return ChatOpenAI(
-            model=chat_model_name,
-            temperature=1 if chat_model_name.startswith("o") else 0.7,
+            model=model_name,
+            temperature=1 if model_name.startswith("o") else 0.7,
         )
     elif provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
-        return ChatAnthropic(model=chat_model_name)
+        return ChatAnthropic(model=model_name)
     elif provider == "google-genai":
         from langchain_google_genai import (
             ChatGoogleGenerativeAI,
@@ -55,7 +55,7 @@ def get_chat_model(chat_model_name: str) -> BaseChatModel:
         )
 
         return ChatGoogleGenerativeAI(
-            model=chat_model_name,
+            model=model_name,
             safety_settings={
                 HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
                 HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
