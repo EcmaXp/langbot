@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 import logging
-import os
 import tempfile
 from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
-from decimal import Decimal
 from functools import cache, cached_property
 from pathlib import Path
 from typing import cast
 
 import hikari
 import tiktoken
+import tokencost
 from async_lru import alru_cache
 from langchain_community.callbacks.manager import get_openai_callback
 from langchain_core.language_models import BaseChatModel
@@ -37,6 +36,7 @@ TOKEN_MARKER_ATTR = "__pre_calc_tokens"
 
 
 def get_chat_model(chat_model_name: str) -> BaseChatModel:
+    get_chat_model_cost(chat_model_name)  # check model costs
     provider, model_name = chat_model_name.split(":")
     if provider == "openai":
         return ChatOpenAI(
@@ -65,6 +65,11 @@ def get_chat_model(chat_model_name: str) -> BaseChatModel:
         )
     else:
         raise ValueError("Unknown provider")
+
+
+def get_chat_model_cost(chat_model_name: str) -> dict:
+    _, model = chat_model_name.split(":")
+    return tokencost.TOKEN_COSTS[model]
 
 
 def get_text_tokens(
@@ -239,6 +244,18 @@ class ChatGPT:
     def chat_model(self):
         return get_chat_model(self.settings.chat_model)
 
+    @cached_property
+    def chat_model_cost(self):
+        return get_chat_model_cost(self.settings.chat_model)
+
+    @property
+    def prompt_cost_per_token(self):
+        return self.chat_model_cost["input_cost_per_token"]
+
+    @property
+    def completion_cost_per_token(self):
+        return self.chat_model_cost["output_cost_per_token"]
+
     @property
     def bot_id(self):
         return self.bot.get_me().id
@@ -310,10 +327,10 @@ class ChatGPT:
                     answer = await chat.ask(max_tokens=8192)
                     await self.reply(message, answer)
 
-                self.state["total_tokens"] += cb.total_tokens or chat.get_tokens()
-                self.state["total_cost"] += cb.total_cost or (
-                    chat.get_tokens()
-                    * Decimal(os.environ.get("LANGBOT_COST_PER_TOKEN", "0.0001"))
+                self.state["total_tokens"] += cb.prompt_tokens + cb.completion_tokens
+                self.state["total_cost"] += (
+                    cb.prompt_tokens * self.prompt_cost_per_token
+                    + cb.completion_tokens * self.completion_cost_per_token
                 )
         except Exception as e:
             logging.exception("Error in chatgpt")
