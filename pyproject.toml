@@ -18,6 +18,7 @@ dependencies = [
     "pydantic-settings>=2.5.2",
     "transformers>=4.44.2",
     "uvloop>=0.20.0",
+    "tokencost>=0.1.12",
 ]
 
 [tool.uv]

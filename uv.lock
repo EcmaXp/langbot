@@ -711,6 +711,7 @@ dependencies = [
     { name = "pillow" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "tokencost" },
     { name = "transformers" },
     { name = "uvloop" },
 ]
@@ -733,6 +734,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=10.4.0" },
     { name = "pydantic", specifier = ">=2.9.1" },
     { name = "pydantic-settings", specifier = ">=2.5.2" },
+    { name = "tokencost", specifier = ">=0.1.12" },
     { name = "transformers", specifier = ">=4.44.2" },
     { name = "uvloop", specifier = ">=0.20.0" },
 ]
@@ -1373,6 +1375,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/6d/87/51a133a3d5307cf7ae3754249b0faaa91d3414b85c3d36f80b54d6817aa6/tiktoken-0.7.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:d427614c3e074004efa2f2411e16c826f9df427d3c70a54725cae860f09e4bf4", size = 1092472 },
     { url = "https://files.pythonhosted.org/packages/a5/1f/c93517dc6d3b2c9e988b8e24f87a8b2d4a4ab28920a3a3f3ea338397ae0c/tiktoken-0.7.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:8c46d7af7b8c6987fac9b9f61041b452afe92eb087d29c9ce54951280f899a97", size = 1141881 },
     { url = "https://files.pythonhosted.org/packages/bf/4b/48ca098cb580c099b5058bf62c4cb5e90ca6130fa43ef4df27088536245b/tiktoken-0.7.0-cp312-cp312-win_amd64.whl", hash = "sha256:0bc603c30b9e371e7c4c7935aba02af5994a909fc3c0fe66e7004070858d3f8f", size = 799281 },
+]
+
+[[package]]
+name = "tokencost"
+version = "0.1.12"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "tiktoken" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/24/38/43ccba291ead519c3c87882b61316adfc69040f27f96d000153545c26d57/tokencost-0.1.12.tar.gz", hash = "sha256:555a2812dd1039923ef7ecc057d54eee898acdee004830ad845552196a5b2b59", size = 73043 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7b/73/40618d13781efffd6e3d1f93f74a3311bf5ff88f307bb1b304d2b785cfe4/tokencost-0.1.12-py3-none-any.whl", hash = "sha256:cf08dabfa970eb56cc69fed45e405095dfdc3ada261d3e6ad944aadd2bac157d", size = 35820 },
 ]
 
 [[package]]
