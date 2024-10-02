@@ -30,8 +30,6 @@ from .options import ImageQuality, Settings, openai_settings, policy, settings
 
 MAX_TOKENS = policy.token_limit
 MESSAGE_FETCH_LIMIT = policy.message_fetch_limit
-COMPRESS_THRESHOLD_PER_CHAT = policy.compress_threshold_per_chat
-COMPRESS_THRESHOLD_PER_MSG = policy.compress_threshold_per_message
 TOKEN_MARKER_ATTR = "__pre_calc_tokens"
 
 
@@ -158,20 +156,6 @@ class Chat:
 
     def copy(self):
         return Chat(deepcopy(self.history), self.chat_model, self.settings)
-
-    async def compress_large_messages(
-        self,
-        chat_compress_threshold: int,
-        message_compress_threshold: int,
-    ):
-        if self.get_tokens() < chat_compress_threshold:
-            return
-
-        for message in self.history[3:-3]:
-            if isinstance(message, SystemMessage):
-                continue
-            elif getattr(message, TOKEN_MARKER_ATTR) > message_compress_threshold:
-                await get_summary(message)
 
 
 @alru_cache(maxsize=1024, typed=True)
@@ -343,17 +327,6 @@ class ChatGPT:
 
         before_tokens = chat.get_tokens()
         print(f"{title}: Requesting {before_tokens} tokens")
-
-        await chat.compress_large_messages(
-            chat_compress_threshold=COMPRESS_THRESHOLD_PER_CHAT,
-            message_compress_threshold=COMPRESS_THRESHOLD_PER_MSG,
-        )
-        after_tokens = chat.get_tokens()
-        discarded_tokens = before_tokens - after_tokens
-        if discarded_tokens:
-            print(
-                f"{title}: Requesting {after_tokens} tokens; discarded {discarded_tokens} tokens"
-            )
 
     async def update_presence(self):
         chat_model_name = self.settings.chat_model

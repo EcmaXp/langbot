@@ -32,9 +32,6 @@ class Policy(BaseModel):
     token_limit: ByteSize = ByteSize(8 * K)
     message_fetch_limit: int = 64
 
-    compress_threshold_per_chat: ByteSize = ByteSize(4 * K)
-    compress_threshold_per_message: ByteSize = ByteSize(2 * K)
-
     max_attachment_count: int = 3
     max_text_attachment_count: int = 2
     max_image_attachment_count: int = 2
