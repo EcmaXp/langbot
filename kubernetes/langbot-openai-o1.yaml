@@ -5,18 +5,18 @@ metadata:
   namespace: langbot
   labels:
     app: langbot
-    model: o1-preview
+    model: o1
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: o1-preview
+      model: o1
   template:
     metadata:
       labels:
         app: langbot
-        model: o1-preview
+        model: o1
     spec:
       serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
@@ -33,7 +33,7 @@ spec:
               memory: 512M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "openai:o1-preview"
+              value: "openai:o1"
             - name: LANGBOT_TIKTOKEN_MODEL
               value: "gpt-4o-2024-08-06"
             - name: LANGBOT_POLICY__ALLOWED_IMAGE_MODELS

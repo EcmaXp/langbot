@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: langbot-openai-o1-mini
+  name: langbot-openai-o3-mini
   namespace: langbot
   labels:
     app: langbot
-    model: o1-mini
+    model: o3-mini
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: o1-mini
+      model: o3-mini
   template:
     metadata:
       labels:
         app: langbot
-        model: o1-mini
+        model: o3-mini
     spec:
       serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
@@ -33,7 +33,7 @@ spec:
               memory: 512M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "openai:o1-mini"
+              value: "openai:o3-mini"
             - name: LANGBOT_TIKTOKEN_MODEL
               value: "gpt-4o-2024-08-06"
             - name: LANGBOT_POLICY__ALLOWED_IMAGE_MODELS
@@ -45,21 +45,21 @@ spec:
             - secretRef:
                 name: langbot-openai
             - secretRef:
-                name: langbot-openai-o1-mini
+                name: langbot-openai-o3-mini
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultDynamicSecret
 metadata:
-  name: langbot-openai-o1-mini
+  name: langbot-openai-o3-mini
   namespace: langbot
 spec:
   vaultAuthRef: langbot
   mount: op
-  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-openai-o1-mini
+  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-openai-o3-mini
   refreshAfter: 60s
   destination:
     create: true
-    name: langbot-openai-o1-mini
+    name: langbot-openai-o3-mini
     transformation:
       includes:
         - LANGBOT_DISCORD_TOKEN
