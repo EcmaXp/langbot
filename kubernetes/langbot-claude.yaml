@@ -5,18 +5,18 @@ metadata:
   namespace: langbot
   labels:
     app: langbot
-    model: claude-3-5-sonnet
+    model: claude-3-7-sonnet
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: claude-3-5-sonnet
+      model: claude-3-7-sonnet
   template:
     metadata:
       labels:
         app: langbot
-        model: claude-3-5-sonnet
+        model: claude-3-7-sonnet
     spec:
       serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
@@ -33,7 +33,7 @@ spec:
               memory: 512M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "anthropic:claude-3-5-sonnet-20240620"
+              value: "anthropic:claude-3-7-sonnet-latest"
             - name: LANGBOT_TIKTOKEN_MODEL
               value: "gpt-4o-2024-08-06"
           envFrom:
