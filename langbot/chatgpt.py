@@ -19,14 +19,13 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import (
     ChatPromptTemplate,
-    HumanMessagePromptTemplate,
     MessagesPlaceholder,
 )
 from langchain_core.runnables import Runnable, RunnablePassthrough
 from langchain_openai import ChatOpenAI
 
 from .attachment import AttachmentGroup, GPTImageAttachment, TextAttachment
-from .options import ImageQuality, Settings, openai_settings, policy, settings
+from .options import ImageQuality, Settings, policy
 
 MAX_TOKENS = policy.token_limit
 MESSAGE_FETCH_LIMIT = policy.message_fetch_limit
@@ -156,60 +155,6 @@ class Chat:
 
     def copy(self):
         return Chat(deepcopy(self.history), self.chat_model, self.settings)
-
-
-@alru_cache(maxsize=1024, typed=True)
-async def get_summary(message: BaseMessage):
-    chat_model = ChatOpenAI(model="gpt-3.5-turbo-0125")
-    chain = (
-        RunnablePassthrough()
-        | ChatPromptTemplate.from_messages(
-            [
-                SystemMessage("[system] Summarize the following:"),
-                HumanMessagePromptTemplate.from_template("{input}"),
-            ]
-        )
-        | chat_model
-        | StrOutputParser()
-    )
-
-    img_count = 0
-    if isinstance(message.content, str):
-        text = message.content
-    else:
-        pos, texts = 0, []
-        for _ in range(len(message.content)):
-            item = message.content[pos]
-            if item["type"] == "text":
-                texts.append(item["text"])
-                del message.content[pos]
-                pos -= 1
-            elif item["type"] == "image_url":
-                img_count += 1
-                item["image_url"]["detail"] = "low"
-            pos += 1
-        text = "\n".join(texts)
-
-    old_num_tokens = getattr(message, TOKEN_MARKER_ATTR)
-    new_num_tokens = 0
-
-    if text:
-        summary = await chain.ainvoke({"input": text})
-        new_num_tokens += get_text_tokens(
-            chat_model,
-            summary,
-            tiktoken_model=settings.tiktoken_model,
-        )
-
-        if isinstance(message.content, str):
-            message.content = summary
-        elif summary:
-            message.content.append({"type": "text", "text": summary})
-
-    new_num_tokens += img_count * openai_settings.OPENAI_DEFAULT_IMAGE_COST
-
-    print(f"Summarized: {old_num_tokens} -> {new_num_tokens} tokens")
-    setattr(message, TOKEN_MARKER_ATTR, new_num_tokens)
 
 
 class ChatGPT:
