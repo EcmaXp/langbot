@@ -90,7 +90,6 @@ class Settings(BaseSettings):
 
     discord_token: SecretStr
     chat_model: str
-    tiktoken_model: str | None = None
     policy: Policy = Policy()
 
 

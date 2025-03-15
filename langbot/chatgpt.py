@@ -5,12 +5,11 @@ import tempfile
 from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
-from functools import cache, cached_property
+from functools import cached_property
 from pathlib import Path
 from typing import cast
 
 import hikari
-import tiktoken
 import tokencost
 from async_lru import alru_cache
 from langchain_community.callbacks.manager import get_openai_callback
@@ -69,28 +68,8 @@ def get_chat_model_cost(chat_model_name: str) -> dict:
     return tokencost.TOKEN_COSTS[model]
 
 
-def get_text_tokens(
-    chat_model: BaseChatModel,
-    text: str,
-    *,
-    tiktoken_model: str | None = None,
-) -> int:
-    if not tiktoken_model:
-        if isinstance(chat_model, ChatOpenAI):
-            tiktoken_model = chat_model.model_name
-        elif type(chat_model).__name__ == "ChatGoogleGenerativeAI":
-            tiktoken_model = "gpt-4-turbo-preview"  # fallback
-
-    if tiktoken_model:
-        return _get_num_text_tokens_openai(tiktoken_model, text)
-    else:
-        return chat_model.get_num_tokens(text)
-
-
-@cache
-def _get_num_text_tokens_openai(model_name: str, text: str) -> int:
-    encoding = tiktoken.encoding_for_model(model_name)
-    return len(encoding.encode(text))
+def get_text_len(text: str) -> int:
+    return len(text.encode("utf-8"))
 
 
 class Chat:
@@ -140,11 +119,7 @@ class Chat:
             if hasattr(message, TOKEN_MARKER_ATTR):
                 tokens += getattr(message, TOKEN_MARKER_ATTR)
             elif isinstance(message.content, str):
-                tokens += get_text_tokens(
-                    self.chat_model,
-                    message.content,
-                    tiktoken_model=self.settings.tiktoken_model,
-                )
+                tokens += get_text_len(message.content)
             elif isinstance(message.content, dict):
                 # TODO: implement this
                 raise NotImplementedError(
@@ -352,11 +327,7 @@ class ChatGPT:
                 # Text tokens
                 for item in content:
                     if item["type"] == "text":
-                        total_tokens += get_text_tokens(
-                            self.chat_model,
-                            item["text"],
-                            tiktoken_model=self.settings.tiktoken_model,
-                        )
+                        total_tokens += get_text_len(item["text"])
 
                 # Image tokens
                 total_tokens += sum(img.tokens for img in group.images)
@@ -369,11 +340,7 @@ class ChatGPT:
             else:
                 if not text:
                     text = "-" if messages else "hello"
-                total_tokens = get_text_tokens(
-                    self.chat_model,
-                    text,
-                    tiktoken_model=self.settings.tiktoken_model,
-                )
+                total_tokens = get_text_len(text)
                 if total_tokens > MAX_TOKENS:
                     raise ValueError("Text is too long to read.")
                 msg = msg_type[role](text)

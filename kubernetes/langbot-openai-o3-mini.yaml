@@ -34,8 +34,6 @@ spec:
           env:
             - name: LANGBOT_CHAT_MODEL
               value: "openai:o3-mini"
-            - name: LANGBOT_TIKTOKEN_MODEL
-              value: "gpt-4o-2024-08-06"
             - name: LANGBOT_POLICY__ALLOWED_IMAGE_MODELS
               value: "[]"
           envFrom:
