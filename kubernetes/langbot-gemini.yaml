@@ -38,6 +38,9 @@ spec:
             - configMapRef:
                 name: langbot-policy
               prefix: LANGBOT_POLICY__
+            - configMapRef:
+                name: langbot-gemini-fallback
+              prefix: LANGBOT_FALLBACK__
             - secretRef:
                 name: langbot-openai
             - secretRef:
@@ -60,3 +63,15 @@ spec:
       includes:
         - LANGBOT_DISCORD_TOKEN
         - GOOGLE_API_KEY
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: langbot-gemini-fallback
+  namespace: langbot
+  labels:
+    app: langbot
+data:
+  OVERRIDE_COSTS: "true"
+  INPUT_COST_PER_TOKEN: "0"
+  OUTPUT_COST_PER_TOKEN: "0"

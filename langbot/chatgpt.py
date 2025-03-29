@@ -24,7 +24,7 @@ from langchain_core.runnables import Runnable, RunnablePassthrough
 from langchain_openai import ChatOpenAI
 
 from .attachment import AttachmentGroup, GPTImageAttachment, TextAttachment
-from .options import ImageQuality, Settings, policy
+from .options import ImageQuality, Settings, fallback, policy
 
 MAX_TOKENS = policy.token_limit
 MESSAGE_FETCH_LIMIT = policy.message_fetch_limit
@@ -65,6 +65,12 @@ def get_chat_model(chat_model_name: str) -> BaseChatModel:
 
 def get_chat_model_cost(chat_model_name: str) -> dict:
     _, model = chat_model_name.split(":")
+    if fallback.override_costs:
+        return {
+            "input_cost_per_token": fallback.input_cost_per_token,
+            "output_cost_per_token": fallback.output_cost_per_token,
+        }
+
     return tokencost.TOKEN_COSTS[model]
 
 

@@ -1,4 +1,5 @@
 import enum
+from decimal import Decimal
 
 from pydantic import BaseModel, ByteSize, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -82,6 +83,12 @@ class Policy(BaseModel):
     discord_url_allowed: bool = True
 
 
+class Fallback(BaseModel):
+    override_costs: bool = False
+    input_cost_per_token: Decimal | None = None
+    output_cost_per_token: Decimal | None = None
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="LANGBOT_",
@@ -91,7 +98,9 @@ class Settings(BaseSettings):
     discord_token: SecretStr
     chat_model: str
     policy: Policy = Policy()
+    fallback: Fallback = Fallback()
 
 
 settings = Settings()
 policy = settings.policy
+fallback = settings.fallback
