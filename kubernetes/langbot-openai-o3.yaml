@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: langbot-openai-o1
+  name: langbot-openai-o3
   namespace: langbot
   labels:
     app: langbot
-    model: o1
+    model: o3
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: o1
+      model: o3
   template:
     metadata:
       labels:
         app: langbot
-        model: o1
+        model: o3
     spec:
       serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
@@ -33,7 +33,7 @@ spec:
               memory: 160M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "openai:o1"
+              value: "openai:o3"
             - name: LANGBOT_POLICY__ALLOWED_IMAGE_MODELS
               value: "[]"
           envFrom:
@@ -41,26 +41,26 @@ spec:
                 name: langbot-policy
               prefix: LANGBOT_POLICY__
             - configMapRef:
-                name: langbot-openai-o1-policy
+                name: langbot-openai-o3-policy
               prefix: LANGBOT_POLICY__
             - secretRef:
                 name: langbot-openai
             - secretRef:
-                name: langbot-openai-o1
+                name: langbot-openai-o3
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultDynamicSecret
 metadata:
-  name: langbot-openai-o1
+  name: langbot-openai-o3
   namespace: langbot
 spec:
   vaultAuthRef: langbot
   mount: op
-  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-openai-o1
+  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-openai-o3
   refreshAfter: 60s
   destination:
     create: true
-    name: langbot-openai-o1
+    name: langbot-openai-o3
     transformation:
       includes:
         - LANGBOT_DISCORD_TOKEN
@@ -68,7 +68,7 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: langbot-openai-o1-policy
+  name: langbot-openai-o3-policy
   namespace: langbot
   labels:
     app: langbot
