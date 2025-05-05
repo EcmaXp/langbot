@@ -27,10 +27,10 @@ spec:
           resources:
             requests:
               cpu: 10m
-              memory: 160M
+              memory: 200M
             limits:
               cpu: 1000m
-              memory: 160M
+              memory: 200M
           env:
             - name: LANGBOT_CHAT_MODEL
               value: "anthropic:claude-3-7-sonnet-latest"
