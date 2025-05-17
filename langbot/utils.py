@@ -4,4 +4,4 @@ def humanize_tuple(tup: tuple):
     elif len(tup) == 2:
         return f"{tup[0]} and {tup[1]}"
     else:
-        return ", ".join(tuple[:-1]) + f", and {tup[-1]}"
+        return ", ".join(tup[:-1]) + f", and {tup[-1]}"

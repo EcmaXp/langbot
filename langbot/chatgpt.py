@@ -227,7 +227,7 @@ class ChatGPT:
 
         try:
             chat = await self.build_chat(message)
-            if isinstance(chat.history[-1], SystemMessage) == "system":
+            if isinstance(chat.history[-1], SystemMessage):
                 await self.reply(message, "[SYSTEM] System message is set.")
                 return
 
