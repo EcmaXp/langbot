@@ -325,7 +325,7 @@ class ChatGPT:
                 "user": HumanMessage,
                 "assistant": AIMessage,
             }
-            if role not in msg_type.keys():
+            if role not in msg_type:
                 continue
             content = await group.export(text) if group else None
             if content:
@@ -369,7 +369,7 @@ class ChatGPT:
             raise ValueError("Not a text channel")
 
         messages = []
-        for i in range(limit):
+        for _ in range(limit):
             self.cached_messages[channel.id][message.id] = message
             messages.append(message)
 

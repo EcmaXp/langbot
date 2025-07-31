@@ -86,8 +86,8 @@ class TextAttachment(DiscordAttachment):
         raw_data = await self.attachment.read()
         try:
             result = raw_data.decode("utf-8")
-        except UnicodeDecodeError:
-            raise ValueError("Text attachment should be encoded to UTF-8.")
+        except UnicodeDecodeError as e:
+            raise ValueError("Text attachment should be encoded to UTF-8.") from e
 
         return result
 
@@ -114,9 +114,7 @@ class ImagePayload(BaseModel):
         allowed_ext = (ext.replace(".", "") for ext in policy.allowed_image_extensions)
 
         is_base64 = re.match(f"data:image/({'|'.join(allowed_ext)});base64,", v["url"])
-        is_discord_cdn = re.match(
-            "https://cdn.discordapp.com/attachments", v["url"]
-        )
+        is_discord_cdn = re.match("https://cdn.discordapp.com/attachments", v["url"])
 
         if not is_base64 and not is_discord_cdn:
             raise ValueError(
@@ -231,7 +229,7 @@ class GPTImageAttachment(DiscordAttachment):
             )
         elif att.size > policy.max_image_file_size:
             raise ValueError(
-                f"Each image file's size cannot exceed {policy.max_image_file_size / (1024 ** 2):.1f } MB."
+                f"Each image file's size cannot exceed {policy.max_image_file_size / (1024**2):.1f } MB."
             )
         elif att.width is None or att.height is None:
             raise ValueError(f"Image not found: {att.filename}")
@@ -240,7 +238,7 @@ class GPTImageAttachment(DiscordAttachment):
                 f"Both width and height of an image '{att.filename}' must be positive."
             )
         elif att.width > policy.max_image_width or att.height > policy.max_image_height:
-            msg = f"The image size cannot be over "
+            msg = "The image size cannot be over "
             msg += f"{policy.max_image_file_size} x {policy.max_image_height} px."
             msg += f" ({att.filename}: {att.width}x{att.height})"
             raise ValueError(msg)
@@ -261,7 +259,7 @@ class GPTImageAttachment(DiscordAttachment):
         raw_data = await self.attachment.read()
         image = Image.open(BytesIO(raw_data))
 
-        if hasattr(image, "is_animated") and getattr(image, "is_animated"):
+        if hasattr(image, "is_animated") and image.is_animated:
             image.seek(0)  # Fixed to the first frame
 
         buffer = BytesIO()
