@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: langbot-claude
+  name: langbot-claude-sonnet
   namespace: langbot
   labels:
     app: langbot
-    model: claude-3-7-sonnet
+    model: claude-sonnet
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: claude-3-7-sonnet
+      model: claude-sonnet
   template:
     metadata:
       labels:
         app: langbot
-        model: claude-3-7-sonnet
+        model: claude-sonnet
     spec:
       serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
@@ -33,7 +33,7 @@ spec:
               memory: 200M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "claude-3-7-sonnet-latest"
+              value: "claude-sonnet-4-20250514"
           envFrom:
             - configMapRef:
                 name: langbot-policy
@@ -41,12 +41,12 @@ spec:
             - secretRef:
                 name: langbot-openai
             - secretRef:
-                name: langbot-claude
+                name: langbot-claude-sonnet
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultDynamicSecret
 metadata:
-  name: langbot-claude
+  name: langbot-claude-sonnet
   namespace: langbot
 spec:
   vaultAuthRef: langbot
@@ -55,7 +55,7 @@ spec:
   refreshAfter: 60s
   destination:
     create: true
-    name: langbot-claude
+    name: langbot-claude-sonnet
     transformation:
       includes:
         - LANGBOT_DISCORD_TOKEN

@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: langbot-gemini
+  name: langbot-gemini-pro
   namespace: langbot
   labels:
     app: langbot
-    model: gemini-2-5-pro
+    model: gemini-pro
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: gemini-2-5-pro
+      model: gemini-pro
   template:
     metadata:
       labels:
         app: langbot
-        model: gemini-2-5-pro
+        model: gemini-pro
     spec:
       serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
@@ -33,23 +33,23 @@ spec:
               memory: 200M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "gemini/gemini-2.5-pro-preview-03-25"
+              value: "gemini-2.5-pro"
           envFrom:
             - configMapRef:
                 name: langbot-policy
               prefix: LANGBOT_POLICY__
             - configMapRef:
-                name: langbot-gemini-fallback
+                name: langbot-gemini-pro-fallback
               prefix: LANGBOT_FALLBACK__
             - secretRef:
                 name: langbot-openai
             - secretRef:
-                name: langbot-gemini
+                name: langbot-gemini-pro
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultDynamicSecret
 metadata:
-  name: langbot-gemini
+  name: langbot-gemini-pro
   namespace: langbot
 spec:
   vaultAuthRef: langbot
@@ -58,7 +58,7 @@ spec:
   refreshAfter: 60s
   destination:
     create: true
-    name: langbot-gemini
+    name: langbot-gemini-pro
     transformation:
       includes:
         - LANGBOT_DISCORD_TOKEN
@@ -67,7 +67,7 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: langbot-gemini-fallback
+  name: langbot-gemini-pro-fallback
   namespace: langbot
   labels:
     app: langbot
