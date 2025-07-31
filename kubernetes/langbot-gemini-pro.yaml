@@ -33,7 +33,7 @@ spec:
               memory: 200M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "gemini-2.5-pro"
+              value: "gemini/gemini-2.5-pro"
           envFrom:
             - configMapRef:
                 name: langbot-policy
@@ -62,7 +62,7 @@ spec:
     transformation:
       includes:
         - LANGBOT_DISCORD_TOKEN
-        - GOOGLE_API_KEY
+        - GEMINI_API_KEY
 ---
 apiVersion: v1
 kind: ConfigMap

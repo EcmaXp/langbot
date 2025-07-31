@@ -62,7 +62,7 @@ All configuration uses `LANGBOT_` prefix with `__` for nested settings.
 
 - `LANGBOT_DISCORD_TOKEN`: Discord bot token
 - `LANGBOT_CHAT_MODEL`: Native LiteLLM model name (e.g., `gpt-4o`, `claude-3-opus`, `gemini/gemini-pro`)
-- API keys based on chosen provider (ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY)
+- API keys based on chosen provider (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY)
 
 **Policy Defaults:**
 
