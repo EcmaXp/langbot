@@ -5,25 +5,25 @@ description = ""
 authors = [{ name = "EcmaXp", email = "ecmaxp@ecmaxp.kr" }]
 requires-python = ">=3.12"
 dependencies = [
-    "async-lru>=2.0.4",
-    "hikari[speedups]>=2.0.0",
-    "langchain>=0.3.0",
-    "langchain-anthropic>=0.2.0",
-    "langchain-community>=0.3.0",
-    "langchain-core>=0.3.0",
-    "langchain-google-genai>=2.0.0",
-    "langchain-openai>=0.2.0",
-    "pillow>=10.4.0",
-    "pydantic>=2.9.1",
-    "pydantic-settings>=2.5.2",
-    "transformers>=4.44.2",
-    "uvloop>=0.20.0",
-    "tokencost>=0.1.12",
+    "async-lru>=2.0.5",
+    "hikari[speedups]>=2.3.5",
+    "langchain>=0.3.27",
+    "langchain-anthropic>=0.3.18",
+    "langchain-community>=0.3.27",
+    "langchain-core>=0.3.72",
+    "langchain-google-genai>=2.1.8",
+    "langchain-openai>=0.3.28",
+    "pillow>=11.3.0",
+    "pydantic>=2.11.7",
+    "pydantic-settings>=2.10.1",
+    "transformers>=4.54.1",
+    "uvloop>=0.21.0",
+    "tokencost>=0.1.25",
 ]
 
 [tool.uv]
 dev-dependencies = [
-    "reloader-py>=0.15.0",
+    "reloader-py>=0.18.0",
 ]
 
 [project.scripts]
