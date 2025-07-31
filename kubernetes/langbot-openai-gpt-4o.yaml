@@ -33,7 +33,7 @@ spec:
               memory: 200M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "openai:gpt-4o-2024-11-20"
+              value: "gpt-4o-2024-11-20"
             - name: LANGBOT_POLICY__ALLOWED_IMAGE_MODELS
               value: '["gpt-4o-2024-11-20"]'
           envFrom:

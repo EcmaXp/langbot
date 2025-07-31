@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with the Langbot Discord
 
 ## Overview
 
-Langbot is a Discord bot that provides AI-powered chat functionality using multiple language models (OpenAI, Anthropic Claude, Google Gemini).
+Langbot is a Discord bot that provides AI-powered chat functionality using multiple language models (OpenAI, Anthropic Claude, Google Gemini) through the LiteLLM library.
 
 ## Quick Start
 
@@ -19,7 +19,7 @@ Langbot is a Discord bot that provides AI-powered chat functionality using multi
 
 - **Entry Point** (`__main__.py`): Starts the bot with uvloop for performance
 - **Bot Setup** (`bot.py`): Hikari GatewayBot configuration and event listeners
-- **Chat Handler** (`chatgpt.py`): Message processing and LangChain integration
+- **Chat Handler** (`chatgpt.py`): Message processing and LiteLLM integration
 - **Attachments** (`attachment.py`): Image and text file handling with size limits
 - **Configuration** (`options.py`): Pydantic settings and policy management
 
@@ -45,11 +45,12 @@ Langbot is a Discord bot that provides AI-powered chat functionality using multi
 - Text files: Extracted with encoding detection
 - Enforces size/type limits from policy configuration
 
-### LangChain Integration
+### LiteLLM Integration
 
-- `get_chat_model()`: Model instantiation
-- Chain building with prompt templates
-- Response streaming with `astream()`
+- Direct API calls with `litellm.acompletion()` using native model names
+- Built-in cost tracking through response metadata
+- Simplified codebase without complex chain building
+- Unified interface for all LLM providers
 
 ## Configuration
 
@@ -60,7 +61,7 @@ All configuration uses `LANGBOT_` prefix with `__` for nested settings.
 **Required:**
 
 - `LANGBOT_DISCORD_TOKEN`: Discord bot token
-- `LANGBOT_CHAT_MODEL`: Format `provider:model-name`
+- `LANGBOT_CHAT_MODEL`: Native LiteLLM model name (e.g., `gpt-4o`, `claude-3-opus`, `gemini/gemini-pro`)
 - API keys based on chosen provider (ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY)
 
 **Policy Defaults:**
@@ -127,3 +128,4 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 - **Bot crashes**: Unhandled exceptions → Wrap handlers in try/except
 - **Memory leaks**: Large attachments not cleaned → Clean up after processing
 - **Rate limit errors**: Too many requests → Use built-in rate limiters
+- **Model not found**: Check model name format → LiteLLM uses specific naming conventions (e.g., `claude-3-opus`, `gpt-4o`, `gemini/pro`)

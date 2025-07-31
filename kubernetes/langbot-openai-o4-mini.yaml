@@ -33,7 +33,7 @@ spec:
               memory: 200M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "openai:o4-mini"
+              value: "o4-mini"
             - name: LANGBOT_POLICY__ALLOWED_IMAGE_MODELS
               value: "[]"
           envFrom:

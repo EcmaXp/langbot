@@ -33,7 +33,7 @@ spec:
               memory: 200M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "anthropic:claude-3-7-sonnet-latest"
+              value: "claude-3-7-sonnet-latest"
           envFrom:
             - configMapRef:
                 name: langbot-policy

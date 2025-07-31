@@ -1,18 +1,13 @@
 [project]
 name = "langbot"
-version = "0.2.0"
+version = "0.3.0"
 description = ""
 authors = [{ name = "EcmaXp", email = "ecmaxp@ecmaxp.kr" }]
 requires-python = ">=3.12"
 dependencies = [
     "async-lru>=2.0.5",
     "hikari[speedups]>=2.3.5",
-    "langchain>=0.3.27",
-    "langchain-anthropic>=0.3.18",
-    "langchain-community>=0.3.27",
-    "langchain-core>=0.3.72",
-    "langchain-google-genai>=2.1.8",
-    "langchain-openai>=0.3.28",
+    "litellm>=1.0.0",
     "pillow>=11.3.0",
     "pydantic>=2.11.7",
     "pydantic-settings>=2.10.1",

@@ -7,21 +7,12 @@ from copy import deepcopy
 from datetime import datetime
 from functools import cached_property
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import hikari
+import litellm
 import tokencost
 from async_lru import alru_cache
-from langchain_community.callbacks.manager import get_openai_callback
-from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import (
-    ChatPromptTemplate,
-    MessagesPlaceholder,
-)
-from langchain_core.runnables import Runnable, RunnablePassthrough
-from langchain_openai import ChatOpenAI
 
 from .attachment import AttachmentGroup, GPTImageAttachment, TextAttachment
 from .options import ImageQuality, Settings, fallback, policy
@@ -30,48 +21,19 @@ MAX_TOKENS = policy.token_limit
 MESSAGE_FETCH_LIMIT = policy.message_fetch_limit
 TOKEN_MARKER_ATTR = "__pre_calc_tokens"
 
-
-def get_chat_model(chat_model_name: str) -> BaseChatModel:
-    get_chat_model_cost(chat_model_name)  # check model costs
-    provider, model_name = chat_model_name.split(":")
-    if provider == "openai":
-        return ChatOpenAI(
-            model=model_name,
-            temperature=1 if model_name.startswith("o") else 0.7,
-        )
-    elif provider == "anthropic":
-        from langchain_anthropic import ChatAnthropic
-
-        return ChatAnthropic(model=model_name)
-    elif provider == "google-genai":
-        from langchain_google_genai import (
-            ChatGoogleGenerativeAI,
-            HarmBlockThreshold,
-            HarmCategory,
-        )
-
-        return ChatGoogleGenerativeAI(
-            model=model_name,
-            safety_settings={
-                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-            },
-        )
-    else:
-        raise ValueError("Unknown provider")
+# Configure litellm
+litellm.drop_params = True  # Drop unsupported params automatically
+litellm.set_verbose = False  # Set to True for debugging
 
 
 def get_chat_model_cost(chat_model_name: str) -> dict:
-    _, model = chat_model_name.split(":")
     if fallback.override_costs:
         return {
             "input_cost_per_token": fallback.input_cost_per_token,
             "output_cost_per_token": fallback.output_cost_per_token,
         }
 
-    return tokencost.TOKEN_COSTS[model]
+    return tokencost.TOKEN_COSTS[chat_model_name]
 
 
 def get_text_len(text: str) -> int:
@@ -81,23 +43,13 @@ def get_text_len(text: str) -> int:
 class Chat:
     def __init__(
         self,
-        history: list[BaseMessage],
-        chat_model: BaseChatModel,
+        history: list[dict[str, Any]],
+        model: str,
         settings: Settings,
     ):
         self.history = history
-        self.chat_model = chat_model
+        self.model = model
         self.settings = settings
-
-    def build_chat_chain(self) -> Runnable:
-        return (
-            RunnablePassthrough()
-            | ChatPromptTemplate.from_messages(
-                [MessagesPlaceholder(variable_name="chat_history")]
-            )
-            | self.chat_model
-            | StrOutputParser()
-        )
 
     async def ask(
         self,
@@ -106,36 +58,52 @@ class Chat:
         max_tokens: int,
     ):
         if text is not None:
-            self.history.append(HumanMessage(text))
+            self.history.append({"role": "user", "content": text})
 
         available_tokens = max_tokens - self.get_tokens()
         if available_tokens <= 0:
             raise ValueError("No available tokens, please start a new chat.")
 
-        chat_chain = self.build_chat_chain()
-        output = await chat_chain.ainvoke({"chat_history": self.history})
+        # Get appropriate temperature based on model
+        temperature = 1.0 if "o1" in self.model else 0.7
 
-        self.history.append(AIMessage(output))
+        # Create completion using litellm
+        response = await litellm.acompletion(
+            model=self.model,
+            messages=self.history,
+            temperature=temperature,
+            max_tokens=available_tokens,
+        )
+
+        # Extract the response content
+        output = response.choices[0].message.content
+
+        # Store response metadata for cost tracking
+        self.last_response = response
+
+        self.history.append({"role": "assistant", "content": output})
         return output
 
     def get_tokens(self) -> int:
         tokens = 3
         for message in self.history:
             tokens += 5
-            if hasattr(message, TOKEN_MARKER_ATTR):
-                tokens += getattr(message, TOKEN_MARKER_ATTR)
-            elif isinstance(message.content, str):
-                tokens += get_text_len(message.content)
-            elif isinstance(message.content, dict):
-                # TODO: implement this
-                raise NotImplementedError(
-                    "Calculating tokens in multimedia responds is not implemented."
-                )
+            if TOKEN_MARKER_ATTR in message:
+                tokens += message[TOKEN_MARKER_ATTR]
+            elif isinstance(message.get("content"), str):
+                tokens += get_text_len(message["content"])
+            elif isinstance(message.get("content"), list):
+                # Handle multimodal content
+                total_tokens = 0
+                for item in message["content"]:
+                    if item.get("type") == "text":
+                        total_tokens += get_text_len(item.get("text", ""))
+                tokens += total_tokens
 
         return tokens
 
     def copy(self):
-        return Chat(deepcopy(self.history), self.chat_model, self.settings)
+        return Chat(deepcopy(self.history), self.model, self.settings)
 
 
 class ChatGPT:
@@ -151,8 +119,8 @@ class ChatGPT:
         self.state.setdefault("total_cost", 0)
 
     @cached_property
-    def chat_model(self):
-        return get_chat_model(self.settings.chat_model)
+    def model_name(self):
+        return self.settings.chat_model
 
     @cached_property
     def chat_model_cost(self):
@@ -227,24 +195,41 @@ class ChatGPT:
 
         try:
             chat = await self.build_chat(message)
-            if isinstance(chat.history[-1], SystemMessage):
+
+            # Check if last message is system message
+            if chat.history and chat.history[-1].get("role") == "system":
                 await self.reply(message, "[SYSTEM] System message is set.")
                 return
 
-            with get_openai_callback() as cb:
-                async with channel.trigger_typing():
-                    await self.preprocessing_chat(message, chat)
-                    answer = await chat.ask(max_tokens=8192)
-                    await self.reply(message, answer)
+            async with channel.trigger_typing():
+                await self.preprocessing_chat(message, chat)
+                answer = await chat.ask(max_tokens=8192)
+                await self.reply(message, answer)
 
-                self.state["total_tokens"] += cb.prompt_tokens + cb.completion_tokens
+            # Update cost tracking using litellm response metadata
+            if hasattr(chat, "last_response"):
+                response = chat.last_response
+                # Get token usage from response
+                usage = response.usage
+                prompt_tokens = usage.prompt_tokens
+                completion_tokens = usage.completion_tokens
+
+                self.state["total_tokens"] += prompt_tokens + completion_tokens
                 self.state["total_cost"] += (
-                    cb.prompt_tokens * self.prompt_cost_per_token
-                    + cb.completion_tokens * self.completion_cost_per_token
+                    prompt_tokens * self.prompt_cost_per_token
+                    + completion_tokens * self.completion_cost_per_token
                 )
+
         except Exception as e:
             logging.exception("Error in chatgpt")
-            await self.reply(message, f":warning: **{type(e).__name__}**: {e}")
+            try:
+                await self.reply(message, f":warning: **{type(e).__name__}**: {e}")
+            except hikari.ForbiddenError:
+                logging.error(
+                    f"Cannot send error message - missing permissions in channel {message.channel_id}"
+                )
+            except Exception as reply_error:
+                logging.error(f"Failed to send error message: {reply_error}")
 
         await self.update_presence()
 
@@ -289,7 +274,7 @@ class ChatGPT:
     async def build_chat(self, message: hikari.Message) -> Chat:
         bot_mention = self.bot.get_me().mention
 
-        messages: list[BaseMessage] = []
+        messages: list[dict] = []
         fetched = await self.fetch_all_messages(message, MESSAGE_FETCH_LIMIT)
         for msg_index, message in enumerate(fetched):
             role = "assistant" if message.author.id == self.bot_id else "user"
@@ -320,13 +305,9 @@ class ChatGPT:
                             strict=True,
                         )
 
-            msg_type = {
-                "system": SystemMessage,
-                "user": HumanMessage,
-                "assistant": AIMessage,
-            }
-            if role not in msg_type:
+            if role not in ["system", "user", "assistant"]:
                 continue
+
             content = await group.export(text) if group else None
             if content:
                 total_tokens = 0
@@ -341,23 +322,25 @@ class ChatGPT:
                 if total_tokens > MAX_TOKENS:
                     raise ValueError("Attachments are too large to upload.")
                 else:
-                    msg = msg_type[role](content=content)
-                    setattr(msg, TOKEN_MARKER_ATTR, total_tokens)
+                    msg = {
+                        "role": role,
+                        "content": content,
+                        TOKEN_MARKER_ATTR: total_tokens,
+                    }
             else:
                 if not text:
                     text = "-" if messages else "hello"
                 total_tokens = get_text_len(text)
                 if total_tokens > MAX_TOKENS:
                     raise ValueError("Text is too long to read.")
-                msg = msg_type[role](text)
-                setattr(msg, TOKEN_MARKER_ATTR, total_tokens)
+                msg = {"role": role, "content": text, TOKEN_MARKER_ATTR: total_tokens}
 
             if role == "system":
                 messages.insert(0, msg)
             else:
                 messages.append(msg)
 
-        return Chat(messages, self.chat_model, self.settings)
+        return Chat(messages, self.model_name, self.settings)
 
     async def fetch_all_messages(
         self,
@@ -398,8 +381,7 @@ class ChatGPT:
             if attachment.filename.endswith(policy.allowed_text_extensions)
         ]
 
-        _, model_name = self.settings.chat_model.split(":")
-        if model_name in policy.allowed_image_models:
+        if self.settings.chat_model in policy.allowed_image_models:
             image_attachments = [
                 attachment
                 for attachment in message.attachments
