@@ -40,9 +40,6 @@ spec:
             - configMapRef:
                 name: langbot-policy
               prefix: LANGBOT_POLICY__
-            - configMapRef:
-                name: langbot-openai-o3-policy
-              prefix: LANGBOT_POLICY__
             - secretRef:
                 name: langbot-openai
             - secretRef:
@@ -64,18 +61,3 @@ spec:
     transformation:
       includes:
         - LANGBOT_DISCORD_TOKEN
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: langbot-openai-o3-policy
-  namespace: langbot
-  labels:
-    app: langbot
-data:
-  TOKEN_LIMIT: "4KB"
-  MAX_TEXT_FILE_SIZE: "0KB"
-  MESSAGE_FETCH_LIMIT: "4"
-  MAX_ATTACHMENT_COUNT: "0"
-  MAX_TEXT_ATTACHMENT_COUNT: "0"
-  MAX_IMAGE_ATTACHMENT_COUNT: "0"
