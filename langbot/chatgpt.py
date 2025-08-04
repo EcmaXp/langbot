@@ -17,7 +17,8 @@ from async_lru import alru_cache
 from .attachment import AttachmentGroup, GPTImageAttachment, TextAttachment
 from .options import ImageQuality, Settings, fallback, policy
 
-MAX_TOKENS = policy.token_limit
+INPUT_TOKEN_LIMIT = policy.input_token_limit
+OUTPUT_TOKEN_LIMIT = policy.output_token_limit
 MESSAGE_FETCH_LIMIT = policy.message_fetch_limit
 TOKEN_MARKER_ATTR = "__pre_calc_tokens"
 
@@ -60,9 +61,9 @@ class Chat:
         if text is not None:
             self.history.append({"role": "user", "content": text})
 
-        available_tokens = max_tokens - self.get_tokens()
-        if available_tokens <= 0:
-            raise ValueError("No available tokens, please start a new chat.")
+        current_tokens = self.get_tokens()
+        if current_tokens > INPUT_TOKEN_LIMIT:
+            raise ValueError(f"Input exceeds token limit ({current_tokens} > {INPUT_TOKEN_LIMIT}), please start a new chat.")
 
         # Get appropriate temperature based on model
         temperature = 1.0 if "o1" in self.model else 0.7
@@ -72,7 +73,7 @@ class Chat:
             model=self.model,
             messages=self.history,
             temperature=temperature,
-            max_tokens=available_tokens,
+            max_tokens=max_tokens,
         )
 
         # Extract the response content
@@ -203,7 +204,7 @@ class ChatGPT:
 
             async with channel.trigger_typing():
                 await self.preprocessing_chat(message, chat)
-                answer = await chat.ask(max_tokens=8192)
+                answer = await chat.ask(max_tokens=OUTPUT_TOKEN_LIMIT)
                 await self.reply(message, answer)
 
             # Update cost tracking using litellm response metadata
@@ -319,8 +320,8 @@ class ChatGPT:
                 # Image tokens
                 total_tokens += sum(img.tokens for img in group.images)
 
-                if total_tokens > MAX_TOKENS:
-                    raise ValueError("Attachments are too large to upload.")
+                if total_tokens > INPUT_TOKEN_LIMIT:
+                    raise ValueError(f"Attachments are too large to upload ({total_tokens} > {INPUT_TOKEN_LIMIT}).")
                 else:
                     msg = {
                         "role": role,
@@ -331,8 +332,8 @@ class ChatGPT:
                 if not text:
                     text = "-" if messages else "hello"
                 total_tokens = get_text_len(text)
-                if total_tokens > MAX_TOKENS:
-                    raise ValueError("Text is too long to read.")
+                if total_tokens > INPUT_TOKEN_LIMIT:
+                    raise ValueError(f"Text is too long to read ({total_tokens} > {INPUT_TOKEN_LIMIT}).")
                 msg = {"role": role, "content": text, TOKEN_MARKER_ATTR: total_tokens}
 
             if role == "system":

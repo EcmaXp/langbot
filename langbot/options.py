@@ -30,7 +30,8 @@ class ImageQuality(str, enum.Enum):
 
 # Policies
 class Policy(BaseModel):
-    token_limit: ByteSize = ByteSize(8 * K)
+    input_token_limit: ByteSize = ByteSize(64 * K)
+    output_token_limit: ByteSize = ByteSize(32 * K)
     message_fetch_limit: int = 64
 
     max_attachment_count: int = 3
