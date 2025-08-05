@@ -15,6 +15,15 @@ import tokencost
 from async_lru import alru_cache
 
 from .attachment import AttachmentGroup, GPTImageAttachment, TextAttachment
+from .errors import (
+    EmptyResponseError,
+    LangBotError,
+    NotTextChannelError,
+    ResponseTruncatedError,
+    TokenLimitExceededError,
+    TooManyAttachmentsError,
+    UnknownRoleError,
+)
 from .options import ImageQuality, Settings, fallback, policy
 
 INPUT_TOKEN_LIMIT = policy.input_token_limit
@@ -63,7 +72,10 @@ class Chat:
 
         current_tokens = self.get_tokens()
         if current_tokens > INPUT_TOKEN_LIMIT:
-            raise ValueError(f"Input exceeds token limit ({current_tokens} > {INPUT_TOKEN_LIMIT}), please start a new chat.")
+            raise TokenLimitExceededError(
+                value=current_tokens,
+                limit=INPUT_TOKEN_LIMIT,
+            )
 
         # Get appropriate temperature based on model
         temperature = 1.0 if "o1" in self.model else 0.7
@@ -76,8 +88,16 @@ class Chat:
             max_tokens=max_tokens,
         )
 
-        # Extract the response content
-        output = response.choices[0].message.content
+        output = response.choices[0].message.content if response.choices else None
+
+        if output is None:
+            finish_reason = (
+                response.choices[0].finish_reason if response.choices else "unknown"
+            )
+            if finish_reason == "length":
+                raise ResponseTruncatedError(finish_reason=finish_reason)
+            else:
+                raise EmptyResponseError(finish_reason=finish_reason)
 
         # Store response metadata for cost tracking
         self.last_response = response
@@ -221,18 +241,30 @@ class ChatGPT:
                     + completion_tokens * self.completion_cost_per_token
                 )
 
+        except LangBotError as e:
+            logging.exception("Error in chatgpt")
+            await self._send_error_message(
+                message,
+                f"{e:discord}",
+            )
         except Exception as e:
             logging.exception("Error in chatgpt")
-            try:
-                await self.reply(message, f":warning: **{type(e).__name__}**: {e}")
-            except hikari.ForbiddenError:
-                logging.error(
-                    f"Cannot send error message - missing permissions in channel {message.channel_id}"
-                )
-            except Exception as reply_error:
-                logging.error(f"Failed to send error message: {reply_error}")
+            await self._send_error_message(
+                message,
+                f":warning: **{type(e).__name__}** - {e}",
+            )
 
         await self.update_presence()
+
+    async def _send_error_message(self, message: hikari.Message, error_msg: str):
+        try:
+            await self.reply(message, error_msg)
+        except hikari.ForbiddenError:
+            logging.error(
+                f"Cannot send error message - missing permissions in channel {message.channel_id}"
+            )
+        except Exception as reply_error:
+            logging.error(f"Failed to send error message: {reply_error}")
 
     async def preprocessing_chat(self, message: hikari.Message, chat: Chat):
         title = f"{message.author} @ {datetime.now().replace(microsecond=0)}"
@@ -289,7 +321,7 @@ class ChatGPT:
                 elif role == "assistant":
                     continue
                 else:
-                    raise ValueError("Unknown role")
+                    raise UnknownRoleError(role=role)
 
             group: AttachmentGroup | None = None
             if message.attachments:
@@ -321,7 +353,10 @@ class ChatGPT:
                 total_tokens += sum(img.tokens for img in group.images)
 
                 if total_tokens > INPUT_TOKEN_LIMIT:
-                    raise ValueError(f"Attachments are too large to upload ({total_tokens} > {INPUT_TOKEN_LIMIT}).")
+                    raise TokenLimitExceededError(
+                        value=total_tokens,
+                        limit=INPUT_TOKEN_LIMIT,
+                    )
                 else:
                     msg = {
                         "role": role,
@@ -333,7 +368,10 @@ class ChatGPT:
                     text = "-" if messages else "hello"
                 total_tokens = get_text_len(text)
                 if total_tokens > INPUT_TOKEN_LIMIT:
-                    raise ValueError(f"Text is too long to read ({total_tokens} > {INPUT_TOKEN_LIMIT}).")
+                    raise TokenLimitExceededError(
+                        value=total_tokens,
+                        limit=INPUT_TOKEN_LIMIT,
+                    )
                 msg = {"role": role, "content": text, TOKEN_MARKER_ATTR: total_tokens}
 
             if role == "system":
@@ -350,7 +388,7 @@ class ChatGPT:
     ) -> list[hikari.Message]:
         channel = await self.fetch_channel(message.channel_id)
         if not isinstance(channel, hikari.TextableChannel):
-            raise ValueError("Not a text channel")
+            raise NotTextChannelError(channel_id=message.channel_id)
 
         messages = []
         for _ in range(limit):
@@ -372,8 +410,9 @@ class ChatGPT:
     @alru_cache(maxsize=64, typed=True, ttl=3600)
     async def fetch_attachments(self, message: hikari.Message) -> AttachmentGroup:
         if len(message.attachments) > policy.max_attachment_count:
-            raise ValueError(
-                f"The total number of attachments cannot exceed {policy.max_attachment_count}."
+            raise TooManyAttachmentsError(
+                value=len(message.attachments),
+                limit=policy.max_attachment_count,
             )
 
         text_attachments = [
@@ -392,8 +431,9 @@ class ChatGPT:
             image_attachments = []
 
         if len(image_attachments) > policy.max_image_attachment_count:
-            raise ValueError(
-                f"The number of image attachments cannot exceed {policy.max_image_attachment_count}."
+            raise TooManyAttachmentsError(
+                value=len(image_attachments),
+                limit=policy.max_image_attachment_count,
             )
 
         texts = list(map(TextAttachment, text_attachments))
