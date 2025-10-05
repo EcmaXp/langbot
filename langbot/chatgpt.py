@@ -37,11 +37,8 @@ litellm.set_verbose = False  # Set to True for debugging
 
 
 def get_chat_model_cost(chat_model_name: str) -> dict:
-    if fallback.override_costs:
-        return {
-            "input_cost_per_token": fallback.input_cost_per_token,
-            "output_cost_per_token": fallback.output_cost_per_token,
-        }
+    if fallback.override_costs and fallback.cost_model_name:
+        return tokencost.TOKEN_COSTS[fallback.cost_model_name]
 
     return tokencost.TOKEN_COSTS[chat_model_name]
 

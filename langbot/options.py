@@ -86,8 +86,7 @@ class Policy(BaseModel):
 
 class Fallback(BaseModel):
     override_costs: bool = False
-    input_cost_per_token: Decimal | None = None
-    output_cost_per_token: Decimal | None = None
+    cost_model_name: str | None = None
 
 
 class Settings(BaseSettings):
