@@ -7,5 +7,5 @@ metadata:
     app: langbot
 data:
   INPUT_TOKEN_LIMIT: "64KB"
-  OUTPUT_TOKEN_LIMIT: "32KB"
+  OUTPUT_TOKEN_LIMIT: "16KB"
   MAX_TEXT_FILE_SIZE: "32KB"
