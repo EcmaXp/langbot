@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import tempfile
 from collections import defaultdict
@@ -165,6 +166,7 @@ class ChatGPT:
         return self.cached_channels[channel_id]
 
     async def on_ready(self, event: hikari.ShardReadyEvent):
+        await asyncio.sleep(5)
         await self.update_presence()
 
     async def on_message(
@@ -276,8 +278,8 @@ class ChatGPT:
         await self.bot.update_presence(
             activity=hikari.Activity(
                 type=hikari.ActivityType.PLAYING,
-                name=f"{total_tokens:,} tokens = {total_cost:,.2f} $",
-                state=chat_model_name,
+                name=chat_model_name,
+                state=f"{total_tokens:,} tokens = {total_cost:,.2f} $",
             )
         )
 
