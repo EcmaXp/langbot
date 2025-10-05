@@ -5,18 +5,18 @@ metadata:
   namespace: langbot
   labels:
     app: langbot
-    model: claude-sonnet
+    model: claude-sonnet-4-5
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: claude-sonnet
+      model: claude-sonnet-4-5
   template:
     metadata:
       labels:
         app: langbot
-        model: claude-sonnet
+        model: claude-sonnet-4-5
     spec:
       serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
@@ -27,17 +27,20 @@ spec:
           resources:
             requests:
               cpu: 10m
-              memory: 200M
+              memory: 250M
             limits:
               cpu: 1000m
-              memory: 200M
+              memory: 250M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "claude-sonnet-4-20250514"
+              value: "claude-sonnet-4-5-20250929"
           envFrom:
             - configMapRef:
                 name: langbot-policy
               prefix: LANGBOT_POLICY__
+            - configMapRef:
+                name: langbot-claude-sonnet-fallback
+              prefix: LANGBOT_FALLBACK__
             - secretRef:
                 name: langbot-openai
             - secretRef:
@@ -60,3 +63,14 @@ spec:
       includes:
         - LANGBOT_DISCORD_TOKEN
         - ANTHROPIC_API_KEY
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: langbot-claude-sonnet-fallback
+  namespace: langbot
+  labels:
+    app: langbot
+data:
+  OVERRIDE_COSTS: "true"
+  COST_MODEL_NAME: "claude-4-sonnet-20250514"

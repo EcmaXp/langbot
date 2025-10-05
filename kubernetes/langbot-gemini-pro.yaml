@@ -5,18 +5,18 @@ metadata:
   namespace: langbot
   labels:
     app: langbot
-    model: gemini-pro
+    model: gemini-pro-2-5
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: gemini-pro
+      model: gemini-pro-2-5
   template:
     metadata:
       labels:
         app: langbot
-        model: gemini-pro
+        model: gemini-pro-2-5
     spec:
       serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
@@ -27,10 +27,10 @@ spec:
           resources:
             requests:
               cpu: 10m
-              memory: 200M
+              memory: 250M
             limits:
               cpu: 1000m
-              memory: 200M
+              memory: 250M
           env:
             - name: LANGBOT_CHAT_MODEL
               value: "gemini/gemini-2.5-pro"
@@ -38,9 +38,6 @@ spec:
             - configMapRef:
                 name: langbot-policy
               prefix: LANGBOT_POLICY__
-            - configMapRef:
-                name: langbot-gemini-pro-fallback
-              prefix: LANGBOT_FALLBACK__
             - secretRef:
                 name: langbot-openai
             - secretRef:
@@ -63,15 +60,3 @@ spec:
       includes:
         - LANGBOT_DISCORD_TOKEN
         - GEMINI_API_KEY
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: langbot-gemini-pro-fallback
-  namespace: langbot
-  labels:
-    app: langbot
-data:
-  OVERRIDE_COSTS: "true"
-  INPUT_COST_PER_TOKEN: "0"
-  OUTPUT_COST_PER_TOKEN: "0"

@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: langbot-openai-o3
+  name: langbot-openai-gpt
   namespace: langbot
   labels:
     app: langbot
-    model: o3
+    model: gpt-5
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: o3
+      model: gpt-5
   template:
     metadata:
       labels:
         app: langbot
-        model: o3
+        model: gpt-5
     spec:
       serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
@@ -27,15 +27,15 @@ spec:
           resources:
             requests:
               cpu: 10m
-              memory: 200M
+              memory: 250M
             limits:
               cpu: 1000m
-              memory: 200M
+              memory: 250M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "o3"
+              value: "gpt-5-chat-latest"
             - name: LANGBOT_POLICY__ALLOWED_IMAGE_MODELS
-              value: "[]"
+              value: '["gpt-5-chat-latest"]'
           envFrom:
             - configMapRef:
                 name: langbot-policy
@@ -43,21 +43,21 @@ spec:
             - secretRef:
                 name: langbot-openai
             - secretRef:
-                name: langbot-openai-o3
+                name: langbot-openai-gpt
 ---
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultDynamicSecret
 metadata:
-  name: langbot-openai-o3
+  name: langbot-openai-gpt
   namespace: langbot
 spec:
   vaultAuthRef: langbot
   mount: op
-  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-openai-o3
+  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-openai-gpt-4
   refreshAfter: 60s
   destination:
     create: true
-    name: langbot-openai-o3
+    name: langbot-openai-gpt
     transformation:
       includes:
         - LANGBOT_DISCORD_TOKEN
