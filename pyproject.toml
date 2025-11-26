@@ -13,11 +13,10 @@ dependencies = [
     "pydantic-settings>=2.10.1",
     "transformers>=4.54.1",
     "uvloop>=0.21.0",
-    "tokencost>=0.1.25",
 ]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "reloader-py>=0.18.0",
 ]
 
