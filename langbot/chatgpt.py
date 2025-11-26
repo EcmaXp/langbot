@@ -12,7 +12,6 @@ from typing import Any, cast
 
 import hikari
 import litellm
-import tokencost
 from async_lru import alru_cache
 
 from .attachment import AttachmentGroup, GPTImageAttachment, TextAttachment
@@ -25,7 +24,7 @@ from .errors import (
     TooManyAttachmentsError,
     UnknownRoleError,
 )
-from .options import ImageQuality, Settings, fallback, policy
+from .options import ImageQuality, Settings, policy
 
 INPUT_TOKEN_LIMIT = policy.input_token_limit
 OUTPUT_TOKEN_LIMIT = policy.output_token_limit
@@ -35,13 +34,6 @@ TOKEN_MARKER_ATTR = "__pre_calc_tokens"
 # Configure litellm
 litellm.drop_params = True  # Drop unsupported params automatically
 litellm.set_verbose = False  # Set to True for debugging
-
-
-def get_chat_model_cost(chat_model_name: str) -> dict:
-    if fallback.override_costs and fallback.cost_model_name:
-        return tokencost.TOKEN_COSTS[fallback.cost_model_name]
-
-    return tokencost.TOKEN_COSTS[chat_model_name]
 
 
 def get_text_len(text: str) -> int:
@@ -135,23 +127,10 @@ class ChatGPT:
         self.cached_messages = defaultdict(dict)
         self.cached_reply_ids: dict[int, set] = defaultdict(set)
         self.state.setdefault("total_tokens", 0)
-        self.state.setdefault("total_cost", 0)
 
     @cached_property
     def model_name(self):
         return self.settings.chat_model
-
-    @cached_property
-    def chat_model_cost(self):
-        return get_chat_model_cost(self.settings.chat_model)
-
-    @property
-    def prompt_cost_per_token(self):
-        return self.chat_model_cost["input_cost_per_token"]
-
-    @property
-    def completion_cost_per_token(self):
-        return self.chat_model_cost["output_cost_per_token"]
 
     @property
     def bot_id(self):
@@ -226,19 +205,13 @@ class ChatGPT:
                 answer = await chat.ask(max_tokens=OUTPUT_TOKEN_LIMIT)
                 await self.reply(message, answer)
 
-            # Update cost tracking using litellm response metadata
+            # Update token tracking using litellm response metadata
             if hasattr(chat, "last_response"):
                 response = chat.last_response
-                # Get token usage from response
                 usage = response.usage
                 prompt_tokens = usage.prompt_tokens
                 completion_tokens = usage.completion_tokens
-
                 self.state["total_tokens"] += prompt_tokens + completion_tokens
-                self.state["total_cost"] += (
-                    prompt_tokens * self.prompt_cost_per_token
-                    + completion_tokens * self.completion_cost_per_token
-                )
 
         except LangBotError as e:
             logging.exception("Error in chatgpt")
@@ -274,12 +247,11 @@ class ChatGPT:
     async def update_presence(self):
         chat_model_name = self.settings.chat_model
         total_tokens = self.state["total_tokens"]
-        total_cost = self.state["total_cost"]
         await self.bot.update_presence(
             activity=hikari.Activity(
                 type=hikari.ActivityType.PLAYING,
                 name=chat_model_name,
-                state=f"{total_tokens:,} tokens = {total_cost:,.2f} $",
+                state=f"{total_tokens:,} tokens",
             )
         )
 
