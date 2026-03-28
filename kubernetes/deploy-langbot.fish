@@ -1,2 +1,2 @@
 #!/usr/bin/env fish
-kubectl create ns --context sigsrv-prod langbot
+kubectl create ns --context sigsrv-t1 langbot
