@@ -5,18 +5,18 @@ metadata:
   namespace: langbot
   labels:
     app: langbot
-    model: gemini-pro-3
+    model: gemini-pro-3-1
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: gemini-pro-3
+      model: gemini-pro-3-1
   template:
     metadata:
       labels:
         app: langbot
-        model: gemini-pro-3
+        model: gemini-pro-3-1
     spec:
       serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
@@ -33,7 +33,7 @@ spec:
               memory: 512M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "gemini/gemini-3-pro-preview"
+              value: "gemini/gemini-3.1-pro-preview"
           envFrom:
             - configMapRef:
                 name: langbot-policy
