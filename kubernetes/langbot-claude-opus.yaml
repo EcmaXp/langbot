@@ -5,18 +5,18 @@ metadata:
   namespace: langbot
   labels:
     app: langbot
-    model: claude-opus-4-6
+    model: claude-opus-4-7
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: claude-opus-4-6
+      model: claude-opus-4-7
   template:
     metadata:
       labels:
         app: langbot
-        model: claude-opus-4-6
+        model: claude-opus-4-7
     spec:
       serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
@@ -33,7 +33,7 @@ spec:
               memory: 512M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "claude-opus-4-6"
+              value: "claude-opus-4-7"
           envFrom:
             - configMapRef:
                 name: langbot-policy
@@ -73,4 +73,4 @@ metadata:
     app: langbot
 data:
   OVERRIDE_COSTS: "true"
-  COST_MODEL_NAME: "claude-opus-4-6"
+  COST_MODEL_NAME: "claude-opus-4-7"
