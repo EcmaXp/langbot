@@ -5,18 +5,18 @@ metadata:
   namespace: langbot
   labels:
     app: langbot
-    model: gpt-5-4
+    model: gpt-5-5
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: gpt-5-4
+      model: gpt-5-5
   template:
     metadata:
       labels:
         app: langbot
-        model: gpt-5-4
+        model: gpt-5-5
     spec:
       serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
@@ -33,9 +33,9 @@ spec:
               memory: 512M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "gpt-5.4"
+              value: "gpt-5.5"
             - name: LANGBOT_POLICY__ALLOWED_IMAGE_MODELS
-              value: '["gpt-5.4"]'
+              value: '["gpt-5.5"]'
           envFrom:
             - configMapRef:
                 name: langbot-policy
