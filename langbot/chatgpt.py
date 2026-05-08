@@ -356,11 +356,17 @@ class ChatGPT:
                     attachment=answer_file,
                     reply=True,
                     mentions_reply=True,
+                    flags=hikari.MessageFlag.SUPPRESS_EMBEDS,
                 )
             finally:
                 path.unlink(missing_ok=True)
         else:
-            reply = await message.respond(answer, reply=True, mentions_reply=True)
+            reply = await message.respond(
+                answer,
+                reply=True,
+                mentions_reply=True,
+                flags=hikari.MessageFlag.SUPPRESS_EMBEDS,
+            )
 
         self.cached_reply_ids[message.id].add(reply.id)
         self.cached_messages[message.channel_id][reply.id] = reply
