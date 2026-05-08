@@ -1,17 +1,16 @@
 [project]
 name = "langbot"
-version = "0.3.0"
+version = "0.4.0"
 description = ""
 authors = [{ name = "EcmaXp", email = "ecmaxp@ecmaxp.kr" }]
 requires-python = ">=3.14"
 dependencies = [
     "async-lru>=2.0.5",
     "hikari[speedups]>=2.3.5",
-    "litellm>=1.0.0",
     "pillow>=11.3.0",
     "pydantic>=2.11.7",
+    "pydantic-ai-slim[anthropic,google,openai]>=1.89,<2",
     "pydantic-settings>=2.10.1",
-    "transformers>=4.54.1",
     "uvloop>=0.21.0",
 ]
 

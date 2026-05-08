@@ -84,11 +84,6 @@ class Policy(BaseModel):
     discord_url_allowed: bool = True
 
 
-class Fallback(BaseModel):
-    override_costs: bool = False
-    cost_model_name: str | None = None
-
-
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="LANGBOT_",
@@ -98,9 +93,7 @@ class Settings(BaseSettings):
     discord_token: SecretStr
     chat_model: str
     policy: Policy = Policy()
-    fallback: Fallback = Fallback()
 
 
 settings = Settings()
 policy = settings.policy
-fallback = settings.fallback

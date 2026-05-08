@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with the Langbot Discord
 
 ## Overview
 
-Langbot is a Discord bot that provides AI-powered chat functionality using multiple language models (OpenAI, Anthropic Claude, Google Gemini) through the LiteLLM library.
+Langbot is a Discord bot that provides AI-powered chat functionality using multiple language models (OpenAI, Anthropic Claude, Google Gemini) through Pydantic AI.
 
 ## Quick Start
 
@@ -19,7 +19,7 @@ Langbot is a Discord bot that provides AI-powered chat functionality using multi
 
 - **Entry Point** (`__main__.py`): Starts the bot with uvloop for performance
 - **Bot Setup** (`bot.py`): Hikari GatewayBot configuration and event listeners
-- **Chat Handler** (`chatgpt.py`): Message processing and LiteLLM integration
+- **Chat Handler** (`chatgpt.py`): Message processing and Pydantic AI integration
 - **Attachments** (`attachment.py`): Image and text file handling with size limits
 - **Configuration** (`options.py`): Pydantic settings and policy management
 
@@ -45,12 +45,14 @@ Langbot is a Discord bot that provides AI-powered chat functionality using multi
 - Text files: Extracted with encoding detection
 - Enforces size/type limits from policy configuration
 
-### LiteLLM Integration
+### Pydantic AI Integration
 
-- Direct API calls with `litellm.acompletion()` using native model names
-- Built-in cost tracking through response metadata
-- Simplified codebase without complex chain building
-- Unified interface for all LLM providers
+- `pydantic_ai.Agent` constructed once per model string and memoized via `functools.cache`
+- `Agent.run(user_prompt, message_history, instructions, model_settings)` is the only call site
+- Internal `Chat.history` keeps OpenAI-style dicts; converted to `ModelMessage` objects at the call boundary by `_split_history`
+- Multimodal content uses `ImageUrl` / `BinaryContent` from `pydantic_ai`
+- Token usage read from `result.usage()` (`input_tokens` / `output_tokens`)
+- Truncation detected via `result.all_messages()[-1].finish_reason == "length"`
 
 ## Configuration
 
@@ -61,7 +63,7 @@ All configuration uses `LANGBOT_` prefix with `__` for nested settings.
 **Required:**
 
 - `LANGBOT_DISCORD_TOKEN`: Discord bot token
-- `LANGBOT_CHAT_MODEL`: Native LiteLLM model name (e.g., `gpt-4o`, `claude-3-opus`, `gemini/gemini-pro`)
+- `LANGBOT_CHAT_MODEL`: Pydantic AI provider:model identifier (e.g., `openai:gpt-5.5`, `anthropic:claude-opus-4-7`, `google-gla:gemini-3.1-pro-preview`)
 - API keys based on chosen provider (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY)
 
 **Policy Defaults:**
@@ -128,4 +130,4 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 - **Bot crashes**: Unhandled exceptions → Wrap handlers in try/except
 - **Memory leaks**: Large attachments not cleaned → Clean up after processing
 - **Rate limit errors**: Too many requests → Use built-in rate limiters
-- **Model not found**: Check model name format → LiteLLM uses specific naming conventions (e.g., `claude-3-opus`, `gpt-4o`, `gemini/pro`)
+- **Model not found**: Check model name format → Pydantic AI uses `provider:model` (e.g., `openai:gpt-5.5`, `anthropic:claude-opus-4-7`, `google-gla:gemini-3.1-pro-preview`)

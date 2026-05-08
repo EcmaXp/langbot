@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import base64
 import math
-import re
 from abc import ABCMeta, abstractmethod
 from io import BytesIO
 
 from hikari import Attachment
 from PIL import Image
-from pydantic import BaseModel, field_validator
+from pydantic_ai import BinaryContent, ImageUrl
 
 from .options import ImageQuality, openai_settings, policy
 from .utils import humanize_tuple
@@ -24,8 +22,8 @@ class AttachmentGroup:
         self.texts = texts
         self.images = images
 
-    async def export(self, text_content: str) -> list[dict]:
-        content = []
+    async def export(self, text_content: str) -> list[str | ImageUrl | BinaryContent]:
+        content: list[str | ImageUrl | BinaryContent] = []
 
         text = text_content
         if not self.texts:
@@ -37,7 +35,7 @@ class AttachmentGroup:
                 text += f"\n\n{txt.attachment.filename}:\n" + await txt.digest()
 
         if text:
-            content.append({"type": "text", "text": text})
+            content.append(text)
 
         for img in self.images:
             content.append(await img.digest())
@@ -90,41 +88,6 @@ class TextAttachment(DiscordAttachment):
             raise ValueError("Text attachment should be encoded to UTF-8.") from e
 
         return result
-
-
-class ImagePayload(BaseModel):
-    type: str
-    image_url: dict[str, str]
-
-    @classmethod
-    @field_validator("type")
-    def type_must_equal_to_image_url(cls, v):
-        if v != "image_url":
-            raise ValueError("Type must be eqaul to 'image_url'.")
-        return v
-
-    @classmethod
-    @field_validator("image_url")
-    def is_image_url_valid_format(cls, v):
-        if "url" not in v:
-            raise ValueError(
-                "Image payload should have 'url' field to contain an image."
-            )
-
-        allowed_ext = (ext.replace(".", "") for ext in policy.allowed_image_extensions)
-
-        is_base64 = re.match(f"data:image/({'|'.join(allowed_ext)});base64,", v["url"])
-        is_discord_cdn = re.match("https://cdn.discordapp.com/attachments", v["url"])
-
-        if not is_base64 and not is_discord_cdn:
-            raise ValueError(
-                "Invalid image format, every image should be base64 format or Discord CDN URL."
-            )
-        if "detail" in v and v["detail"] not in ("low", "auto", "high"):
-            raise ValueError(
-                "Invalid image quality specifier, it should be one of either 'low', 'high', or 'auto'."
-            )
-        return v
 
 
 class GPTImageAttachment(DiscordAttachment):
@@ -243,18 +206,17 @@ class GPTImageAttachment(DiscordAttachment):
             msg += f" ({att.filename}: {att.width}x{att.height})"
             raise ValueError(msg)
 
-    async def digest(self) -> dict:
+    async def digest(self) -> ImageUrl | BinaryContent:
         self.check_error()
 
         # Discord CDN URL is blocked by bot-scrapping so User-Agent opener hack is required.
         # It doesn't seem like OpenAI image scrapper supports this hack.
-        # So we supply base64 encoded image (* token cost is the same as URL).
+        # So we supply binary image content directly when CDN URLs are disallowed.
         if policy.discord_url_allowed:
-            content = ImagePayload(
-                type="image_url",
-                image_url={"url": self.attachment.url, "detail": self.quality},
+            return ImageUrl(
+                url=self.attachment.url,
+                vendor_metadata={"detail": self.quality.value},
             )
-            return content.model_dump()
 
         raw_data = await self.attachment.read()
         image = Image.open(BytesIO(raw_data))
@@ -264,13 +226,9 @@ class GPTImageAttachment(DiscordAttachment):
 
         buffer = BytesIO()
         image.save(buffer, format=image.format)
-        encoded_image = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-        content = ImagePayload(
-            type="image_url",
-            image_url={
-                "url": f"data:image/{image.format.lower()};base64,{encoded_image}",
-                "detail": self.quality,
-            },
+        return BinaryContent(
+            data=buffer.getvalue(),
+            media_type=f"image/{image.format.lower()}",
+            vendor_metadata={"detail": self.quality.value},
         )
-        return content.model_dump()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 import tempfile
 from collections import defaultdict
@@ -11,8 +12,16 @@ from pathlib import Path
 from typing import Any, cast
 
 import hikari
-import litellm
 from async_lru import alru_cache
+from pydantic_ai import Agent, BinaryContent, ImageUrl
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelRequest,
+    ModelResponse,
+    TextPart,
+    UserPromptPart,
+)
+from pydantic_ai.settings import ModelSettings
 
 from .attachment import AttachmentGroup, GPTImageAttachment, TextAttachment
 from .errors import (
@@ -31,9 +40,72 @@ OUTPUT_TOKEN_LIMIT = policy.output_token_limit
 MESSAGE_FETCH_LIMIT = policy.message_fetch_limit
 TOKEN_MARKER_ATTR = "__pre_calc_tokens"
 
-# Configure litellm
-litellm.drop_params = True  # Drop unsupported params automatically
-litellm.set_verbose = False  # Set to True for debugging
+
+@functools.cache
+def _get_agent(model: str) -> Agent[None, str]:
+    return Agent(model)
+
+
+UserPrompt = str | list[str | ImageUrl | BinaryContent]
+
+
+def _to_user_prompt(content: Any) -> UserPrompt:
+    if isinstance(content, str):
+        return content
+    parts: list[str | ImageUrl | BinaryContent] = []
+    for item in content:
+        if not isinstance(item, (str, ImageUrl, BinaryContent)):
+            raise TypeError(f"Unsupported content item type: {type(item).__name__}")
+        parts.append(item)
+    return parts
+
+
+def _split_history(
+    history: list[dict[str, Any]],
+) -> tuple[UserPrompt, list[ModelMessage], str | None]:
+    """Convert internal OpenAI-style dicts into Pydantic AI inputs.
+
+    Returns (user_prompt, message_history, instructions). The trailing user
+    turn becomes user_prompt; system entries are concatenated into instructions
+    (Pydantic AI does not carry a system role in message_history).
+    """
+    if not history:
+        raise ValueError("history must not be empty")
+
+    last = history[-1]
+    if last.get("role") != "user":
+        raise ValueError(
+            f"history must end with a user turn, got role={last.get('role')!r}"
+        )
+
+    instructions_parts: list[str] = []
+    message_history: list[ModelMessage] = []
+    for msg in history[:-1]:
+        role = msg.get("role")
+        content = msg.get("content")
+        if role == "system":
+            if isinstance(content, str):
+                instructions_parts.append(content)
+            else:
+                for item in content or []:
+                    if isinstance(item, str):
+                        instructions_parts.append(item)
+        elif role == "user":
+            message_history.append(
+                ModelRequest(parts=[UserPromptPart(content=_to_user_prompt(content))])
+            )
+        elif role == "assistant":
+            text = (
+                content
+                if isinstance(content, str)
+                else "".join(item for item in (content or []) if isinstance(item, str))
+            )
+            message_history.append(ModelResponse(parts=[TextPart(content=text)]))
+        else:
+            raise ValueError(f"Unknown role in history: {role!r}")
+
+    instructions = "\n\n".join(instructions_parts) if instructions_parts else None
+    return _to_user_prompt(last.get("content")), message_history, instructions
 
 
 def get_text_len(text: str) -> int:
@@ -67,30 +139,32 @@ class Chat:
                 limit=INPUT_TOKEN_LIMIT,
             )
 
-        # Get appropriate temperature based on model
         temperature = 1.0 if "o1" in self.model else 0.7
 
-        # Create completion using litellm
-        response = await litellm.acompletion(
-            model=self.model,
-            messages=self.history,
-            temperature=temperature,
-            max_tokens=max_tokens,
+        prompt, message_history, instructions = _split_history(self.history)
+        result = await _get_agent(self.model).run(
+            user_prompt=prompt,
+            message_history=message_history,
+            instructions=instructions,
+            model_settings=ModelSettings(
+                temperature=temperature,
+                max_tokens=max_tokens,
+            ),
         )
 
-        output = response.choices[0].message.content if response.choices else None
-
-        if output is None:
+        output = result.output
+        if not output:
+            last = result.all_messages()[-1]
             finish_reason = (
-                response.choices[0].finish_reason if response.choices else "unknown"
+                last.finish_reason
+                if isinstance(last, ModelResponse) and last.finish_reason
+                else "unknown"
             )
             if finish_reason == "length":
                 raise ResponseTruncatedError(finish_reason=finish_reason)
-            else:
-                raise EmptyResponseError(finish_reason=finish_reason)
+            raise EmptyResponseError(finish_reason=finish_reason)
 
-        # Store response metadata for cost tracking
-        self.last_response = response
+        self.last_result = result
 
         self.history.append({"role": "assistant", "content": output})
         return output
@@ -104,11 +178,10 @@ class Chat:
             elif isinstance(message.get("content"), str):
                 tokens += get_text_len(message["content"])
             elif isinstance(message.get("content"), list):
-                # Handle multimodal content
                 total_tokens = 0
                 for item in message["content"]:
-                    if item.get("type") == "text":
-                        total_tokens += get_text_len(item.get("text", ""))
+                    if isinstance(item, str):
+                        total_tokens += get_text_len(item)
                 tokens += total_tokens
 
         return tokens
@@ -205,13 +278,9 @@ class ChatGPT:
                 answer = await chat.ask(max_tokens=OUTPUT_TOKEN_LIMIT)
                 await self.reply(message, answer)
 
-            # Update token tracking using litellm response metadata
-            if hasattr(chat, "last_response"):
-                response = chat.last_response
-                usage = response.usage
-                prompt_tokens = usage.prompt_tokens
-                completion_tokens = usage.completion_tokens
-                self.state["total_tokens"] += prompt_tokens + completion_tokens
+            if hasattr(chat, "last_result"):
+                usage = chat.last_result.usage()
+                self.state["total_tokens"] += usage.input_tokens + usage.output_tokens
 
         except LangBotError as e:
             logging.exception("Error in chatgpt")
@@ -315,12 +384,10 @@ class ChatGPT:
             content = await group.export(text) if group else None
             if content:
                 total_tokens = 0
-                # Text tokens
                 for item in content:
-                    if item["type"] == "text":
-                        total_tokens += get_text_len(item["text"])
+                    if isinstance(item, str):
+                        total_tokens += get_text_len(item)
 
-                # Image tokens
                 total_tokens += sum(img.tokens for img in group.images)
 
                 if total_tokens > INPUT_TOKEN_LIMIT:
