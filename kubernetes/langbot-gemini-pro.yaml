@@ -33,7 +33,7 @@ spec:
               memory: 512M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "gemini/gemini-3.1-pro-preview"
+              value: "google-gla:gemini-3.1-pro-preview"
           envFrom:
             - configMapRef:
                 name: langbot-policy

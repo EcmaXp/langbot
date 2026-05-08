@@ -33,14 +33,11 @@ spec:
               memory: 512M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "claude-opus-4-7"
+              value: "anthropic:claude-opus-4-7"
           envFrom:
             - configMapRef:
                 name: langbot-policy
               prefix: LANGBOT_POLICY__
-            - configMapRef:
-                name: langbot-claude-opus-fallback
-              prefix: LANGBOT_FALLBACK__
             - secretRef:
                 name: langbot-openai
             - secretRef:
@@ -63,14 +60,3 @@ spec:
       includes:
         - LANGBOT_DISCORD_TOKEN
         - ANTHROPIC_API_KEY
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: langbot-claude-opus-fallback
-  namespace: langbot
-  labels:
-    app: langbot
-data:
-  OVERRIDE_COSTS: "true"
-  COST_MODEL_NAME: "claude-opus-4-7"

@@ -33,9 +33,9 @@ spec:
               memory: 512M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "gpt-5.5"
+              value: "openai:gpt-5.5"
             - name: LANGBOT_POLICY__ALLOWED_IMAGE_MODELS
-              value: '["gpt-5.5"]'
+              value: '["openai:gpt-5.5"]'
           envFrom:
             - configMapRef:
                 name: langbot-policy
