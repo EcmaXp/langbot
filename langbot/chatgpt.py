@@ -247,11 +247,7 @@ class ChatGPT:
         if not event.is_human:
             return
 
-        if self.bot_id not in event.message.user_mentions_ids and (
-            not event.message.referenced_message
-            or not event.message.referenced_message.author
-            or event.message.referenced_message.author.id != self.bot_id
-        ):
+        if self.bot_id not in event.message.user_mentions_ids:
             return
 
         channel = await self.fetch_channel(event.channel_id)
