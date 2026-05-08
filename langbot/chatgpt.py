@@ -10,6 +10,7 @@ from datetime import datetime
 from functools import cached_property
 from pathlib import Path
 from typing import Any, cast
+from zoneinfo import ZoneInfo
 
 import hikari
 from async_lru import alru_cache
@@ -104,7 +105,11 @@ def _split_history(
             f"history must end with a user turn, got role={last.get('role')!r}"
         )
 
-    instructions_parts: list[str] = [DISCORD_SYSTEM_PROMPT]
+    today = datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
+    instructions_parts: list[str] = [
+        DISCORD_SYSTEM_PROMPT,
+        f"Today's date (KST): {today}",
+    ]
     message_history: list[ModelMessage] = []
     for msg in history[:-1]:
         role = msg.get("role")
