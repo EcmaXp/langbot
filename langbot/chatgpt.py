@@ -139,17 +139,12 @@ class Chat:
                 limit=INPUT_TOKEN_LIMIT,
             )
 
-        temperature = 1.0 if "o1" in self.model else 0.7
-
         prompt, message_history, instructions = _split_history(self.history)
         result = await _get_agent(self.model).run(
             user_prompt=prompt,
             message_history=message_history,
             instructions=instructions,
-            model_settings=ModelSettings(
-                temperature=temperature,
-                max_tokens=max_tokens,
-            ),
+            model_settings=ModelSettings(max_tokens=max_tokens),
         )
 
         output = result.output
