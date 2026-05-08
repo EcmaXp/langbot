@@ -144,7 +144,7 @@ class Chat:
             user_prompt=prompt,
             message_history=message_history,
             instructions=instructions,
-            model_settings=ModelSettings(max_tokens=max_tokens, thinking="medium"),
+            model_settings=ModelSettings(max_tokens=max_tokens, thinking="high"),
         )
 
         output = result.output
