@@ -40,6 +40,18 @@ OUTPUT_TOKEN_LIMIT = policy.output_token_limit
 MESSAGE_FETCH_LIMIT = policy.message_fetch_limit
 TOKEN_MARKER_ATTR = "__pre_calc_tokens"
 
+DISCORD_SYSTEM_PROMPT = """\
+You are an AI assistant deployed as a Discord bot. Users summon you by mentioning you with @<bot>; the mention is stripped before you see the message.
+
+Discord context:
+- Conversation history is reconstructed from Discord's native reply chain. Different turns may come from different authors; the latest turn is the current speaker. You have no memory beyond this chain.
+- Messages longer than ~2000 characters are auto-converted to a `.md` file attachment, which is a degraded reading experience. Default to concise replies; go long only when the user asks for depth, full code, or a document.
+- Use Discord-flavored Markdown only: **bold**, *italic*, __underline__, ~~strike~~, `inline code`, fenced code blocks with a language hint (e.g. ```python), > quote, # / ## / ### headings, - lists, [text](url). No HTML, no LaTeX, no math via $...$ — those render as raw text in Discord.
+- You may receive image attachments on vision-capable models, and short text files inlined into the user's turn.
+
+Style: chat tone, direct, no boilerplate preamble. Match the user's language (Korean, English, etc.). For code, prefer fenced blocks with language hints over inline.\
+"""
+
 
 @functools.cache
 def _get_agent(model: str) -> Agent[None, str]:
@@ -62,11 +74,12 @@ def _to_user_prompt(content: Any) -> UserPrompt:
 
 def _split_history(
     history: list[dict[str, Any]],
-) -> tuple[UserPrompt, list[ModelMessage], str | None]:
+) -> tuple[UserPrompt, list[ModelMessage], str]:
     """Convert internal OpenAI-style dicts into Pydantic AI inputs.
 
     Returns (user_prompt, message_history, instructions). The trailing user
-    turn becomes user_prompt; system entries are concatenated into instructions
+    turn becomes user_prompt; instructions always start with the Discord
+    baseline, with any user-injected `[SYSTEM]` entries appended after
     (Pydantic AI does not carry a system role in message_history).
     """
     if not history:
@@ -78,7 +91,7 @@ def _split_history(
             f"history must end with a user turn, got role={last.get('role')!r}"
         )
 
-    instructions_parts: list[str] = []
+    instructions_parts: list[str] = [DISCORD_SYSTEM_PROMPT]
     message_history: list[ModelMessage] = []
     for msg in history[:-1]:
         role = msg.get("role")
@@ -104,7 +117,7 @@ def _split_history(
         else:
             raise ValueError(f"Unknown role in history: {role!r}")
 
-    instructions = "\n\n".join(instructions_parts) if instructions_parts else None
+    instructions = "\n\n".join(instructions_parts)
     return _to_user_prompt(last.get("content")), message_history, instructions
 
 
