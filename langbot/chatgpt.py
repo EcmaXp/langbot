@@ -14,6 +14,7 @@ from typing import Any, cast
 import hikari
 from async_lru import alru_cache
 from pydantic_ai import Agent, BinaryContent, ImageUrl
+from pydantic_ai.builtin_tools import WebSearchTool
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -56,7 +57,7 @@ Style: chat tone, direct, no boilerplate preamble. Match the user's language (Ko
 
 @functools.cache
 def _get_agent(model: str) -> Agent[None, str]:
-    return Agent(model)
+    return Agent(model, builtin_tools=[WebSearchTool()])
 
 
 def _build_model_settings(model: str, max_tokens: int) -> ModelSettings:
