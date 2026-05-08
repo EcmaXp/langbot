@@ -21,6 +21,7 @@ from pydantic_ai.messages import (
     TextPart,
     UserPromptPart,
 )
+from pydantic_ai.models.anthropic import AnthropicModelSettings
 from pydantic_ai.settings import ModelSettings
 
 from .attachment import AttachmentGroup, GPTImageAttachment, TextAttachment
@@ -56,6 +57,17 @@ Style: chat tone, direct, no boilerplate preamble. Match the user's language (Ko
 @functools.cache
 def _get_agent(model: str) -> Agent[None, str]:
     return Agent(model)
+
+
+def _build_model_settings(model: str, max_tokens: int) -> ModelSettings:
+    if model.startswith("anthropic:"):
+        return AnthropicModelSettings(
+            max_tokens=max_tokens,
+            thinking="high",
+            anthropic_cache_instructions=True,
+            anthropic_cache_messages=True,
+        )
+    return ModelSettings(max_tokens=max_tokens, thinking="high")
 
 
 UserPrompt = str | list[str | ImageUrl | BinaryContent]
@@ -157,7 +169,7 @@ class Chat:
             user_prompt=prompt,
             message_history=message_history,
             instructions=instructions,
-            model_settings=ModelSettings(max_tokens=max_tokens, thinking="high"),
+            model_settings=_build_model_settings(self.model, max_tokens),
         )
 
         output = result.output
