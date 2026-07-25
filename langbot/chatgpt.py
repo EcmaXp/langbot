@@ -14,8 +14,14 @@ from zoneinfo import ZoneInfo
 
 import hikari
 from async_lru import alru_cache
-from pydantic_ai import Agent, BinaryContent, ImageUrl
-from pydantic_ai.builtin_tools import CodeExecutionTool, WebSearchTool
+from pydantic_ai import (
+    Agent,
+    BinaryContent,
+    CodeExecutionTool,
+    ImageUrl,
+    WebSearchTool,
+)
+from pydantic_ai.capabilities import NativeTool
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -58,14 +64,21 @@ Style: chat tone, direct, no boilerplate preamble. Match the user's language (Ko
 
 @functools.cache
 def _get_agent(model: str) -> Agent[None, str]:
-    return Agent(model, builtin_tools=[WebSearchTool(), CodeExecutionTool()])
+    return Agent(
+        model,
+        capabilities=[NativeTool(WebSearchTool()), NativeTool(CodeExecutionTool())],
+    )
 
 
 def _build_model_settings(model: str, max_tokens: int) -> ModelSettings:
     if model.startswith("anthropic:"):
         return AnthropicModelSettings(
             max_tokens=max_tokens,
-            thinking="high",
+            # pydantic-ai only maps unified `thinking` to adaptive for models its
+            # profile knows; unknown names fall back to budget_tokens, which Opus 4.7+
+            # rejects with a 400.
+            anthropic_thinking={"type": "adaptive"},
+            anthropic_effort="high",
             anthropic_cache_instructions=True,
             anthropic_cache_messages=True,
         )
@@ -301,7 +314,7 @@ class ChatGPT:
                 await self.reply(message, answer)
 
             if hasattr(chat, "last_result"):
-                usage = chat.last_result.usage()
+                usage = chat.last_result.usage
                 self.state["total_tokens"] += usage.input_tokens + usage.output_tokens
 
         except LangBotError as e:

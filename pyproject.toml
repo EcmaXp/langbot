@@ -9,7 +9,7 @@ dependencies = [
     "hikari[speedups]>=2.3.5",
     "pillow>=11.3.0",
     "pydantic>=2.11.7",
-    "pydantic-ai-slim[anthropic,google,openai]>=1.89,<2",
+    "pydantic-ai-slim[anthropic,google,openai]>=2.12,<3",
     "pydantic-settings>=2.10.1",
     "uvloop>=0.21.0",
 ]

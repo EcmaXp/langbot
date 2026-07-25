@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: langbot-gemini-flash
+  namespace: langbot
+  labels:
+    app: langbot
+    model: gemini-3-6-flash
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: langbot
+      model: gemini-3-6-flash
+  template:
+    metadata:
+      labels:
+        app: langbot
+        model: gemini-3-6-flash
+    spec:
+      serviceAccountName: langbot
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: langbot
+          image: registry-prod.deer-neon.ts.net/langbot:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 10m
+              memory: 512M
+            limits:
+              cpu: 1000m
+              memory: 512M
+          env:
+            - name: LANGBOT_CHAT_MODEL
+              value: "google:gemini-3.6-flash"
+          envFrom:
+            - configMapRef:
+                name: langbot-policy
+              prefix: LANGBOT_POLICY__
+            - secretRef:
+                name: langbot-openai
+            - secretRef:
+                name: langbot-gemini-flash
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultDynamicSecret
+metadata:
+  name: langbot-gemini-flash
+  namespace: langbot
+spec:
+  vaultAuthRef: langbot
+  mount: op
+  path: vaults/sigsrv-prod/items/sigsrv-prod-langbot-secrets-gemini-flash
+  refreshAfter: 60s
+  destination:
+    create: true
+    name: langbot-gemini-flash
+    transformation:
+      includes:
+        - LANGBOT_DISCORD_TOKEN
+        - GEMINI_API_KEY
