@@ -5,18 +5,18 @@ metadata:
   namespace: langbot
   labels:
     app: langbot
-    model: gemini-3-6-flash
+    model: gemini-3-8-flash
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: langbot
-      model: gemini-3-6-flash
+      model: gemini-3-8-flash
   template:
     metadata:
       labels:
         app: langbot
-        model: gemini-3-6-flash
+        model: gemini-3-8-flash
     spec:
       serviceAccountName: langbot
       terminationGracePeriodSeconds: 5
@@ -33,7 +33,7 @@ spec:
               memory: 512M
           env:
             - name: LANGBOT_CHAT_MODEL
-              value: "google:gemini-3.6-flash"
+              value: "google:gemini-3.8-flash"
           envFrom:
             - configMapRef:
                 name: langbot-policy
