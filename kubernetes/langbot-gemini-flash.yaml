@@ -24,6 +24,15 @@ spec:
         - name: langbot
           image: registry-prod.deer-neon.ts.net/langbot:latest
           imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
           resources:
             requests:
               cpu: 10m
