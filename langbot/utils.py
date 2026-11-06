@@ -17,17 +17,13 @@ _LANG_RE = re.compile(r"[\w+#.-]{1,32}")
 
 
 def _fence_states(lines: list[str]) -> list[tuple[str, str] | None]:
-    """Return, for each line boundary 0..len(lines), the code fence open there.
-
-    The state is ``(opening_line, closing_marker)`` or ``None`` outside code.
-    """
+    """Return the open fence, as (opening_line, closing_marker), at each line boundary."""
     states: list[tuple[str, str] | None] = [None]
     current: tuple[str, str] | None = None
     for line in lines:
         match = _FENCE_RE.match(line)
         if current is None:
             if match and not (match[1][0] == "`" and "`" in match[2]):
-                # Keep only the language hint so a reopened fence stays short.
                 lang = _LANG_RE.match(match[2].strip())
                 current = (match[1] + (lang[0] if lang else ""), match[1])
         elif match and match[2].strip() == "":
@@ -51,17 +47,11 @@ def _split_long_line(line: str, width: int) -> list[str]:
 
 
 def split_message(text: str, limit: int = DISCORD_MESSAGE_LIMIT) -> list[str]:
-    """Split text into Discord-sized chunks without breaking Markdown code blocks.
-
-    Breaks prefer blank lines outside code blocks. When a break lands inside a
-    fenced code block, the chunk is closed with the fence and the next chunk
-    reopens it with the same language hint.
-    """
+    """Split text into Discord-sized chunks without breaking Markdown code blocks."""
     text = text.strip()
     if len(text) <= limit:
         return [text] if text else []
 
-    # Reserve room for a reopened fence header and a closing fence.
     width = max(limit - 200, limit // 2)
     lines = [
         part for line in text.split("\n") for part in _split_long_line(line, width)

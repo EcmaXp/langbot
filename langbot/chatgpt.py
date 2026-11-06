@@ -49,7 +49,6 @@ INPUT_TOKEN_LIMIT = policy.input_token_limit
 OUTPUT_TOKEN_LIMIT = policy.output_token_limit
 MESSAGE_FETCH_LIMIT = policy.message_fetch_limit
 TOKEN_MARKER_ATTR = "__pre_calc_tokens"
-# Replies longer than this many Discord messages fall back to a .md attachment.
 MAX_REPLY_CHUNKS = 8
 
 DISCORD_SYSTEM_PROMPT = """\
@@ -369,8 +368,6 @@ class ChatGPT:
             self._track_reply(message, reply)
             return reply
 
-        # Each chunk replies to the previous one, so the reply chain that
-        # build_chat() walks still reaches the user's message from any chunk.
         target = message
         for index, chunk in enumerate(chunks):
             target = await target.respond(
@@ -470,8 +467,6 @@ class ChatGPT:
                     )
                 msg = {"role": role, "content": text, TOKEN_MARKER_ATTR: total_tokens}
 
-            # A long answer is sent as several chained messages; rejoin them
-            # into one assistant turn.
             previous = messages[-1] if messages else None
             if (
                 role == "assistant"
