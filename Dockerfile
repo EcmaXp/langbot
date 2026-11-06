@@ -11,4 +11,4 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --compile-bytecode
 
 ENV PYTHONOPTIMIZE=2
-CMD ["uv", "run", "--frozen", "langbot"]
+CMD ["uv", "run", "--frozen", "--no-sync", "langbot"]
