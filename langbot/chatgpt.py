@@ -43,18 +43,21 @@ from .errors import (
     UnknownRoleError,
 )
 from .options import ImageQuality, Settings, policy
+from .utils import split_message
 
 INPUT_TOKEN_LIMIT = policy.input_token_limit
 OUTPUT_TOKEN_LIMIT = policy.output_token_limit
 MESSAGE_FETCH_LIMIT = policy.message_fetch_limit
 TOKEN_MARKER_ATTR = "__pre_calc_tokens"
+# Replies longer than this many Discord messages fall back to a .md attachment.
+MAX_REPLY_CHUNKS = 8
 
 DISCORD_SYSTEM_PROMPT = """\
 You are an AI assistant deployed as a Discord bot. Users summon you by mentioning you with @<bot>; the mention is stripped before you see the message.
 
 Discord context:
 - Conversation history is reconstructed from Discord's native reply chain. Different turns may come from different authors; the latest turn is the current speaker. You have no memory beyond this chain.
-- Messages longer than ~2000 characters are auto-converted to a `.md` file attachment, which is a degraded reading experience. Default to concise replies; go long only when the user asks for depth, full code, or a document.
+- Messages longer than ~2000 characters are split into several consecutive Discord messages (code blocks are closed and reopened at the split); extremely long replies become a `.md` file attachment. Either way it is a degraded reading experience. Default to concise replies; go long only when the user asks for depth, full code, or a document.
 - Use Discord-flavored Markdown only: **bold**, *italic*, __underline__, ~~strike~~, `inline code`, fenced code blocks with a language hint (e.g. ```python), > quote, # / ## / ### headings, - lists, [text](url). No HTML, no LaTeX, no math via $...$ — those render as raw text in Discord.
 - You may receive image attachments on vision-capable models, and short text files inlined into the user's turn.
 
@@ -360,30 +363,44 @@ class ChatGPT:
         )
 
     async def reply(self, message: hikari.Message, answer: str) -> hikari.Message:
-        if len(answer) >= 2000:
-            path = Path(tempfile.mktemp(suffix=".log"))
-            try:
-                path.write_text(answer, encoding="utf-8")
-                answer_file = hikari.File(path, filename="message.md")
-                reply = await message.respond(
-                    attachment=answer_file,
-                    reply=True,
-                    mentions_reply=True,
-                    flags=hikari.MessageFlag.SUPPRESS_EMBEDS,
-                )
-            finally:
-                path.unlink(missing_ok=True)
-        else:
-            reply = await message.respond(
-                answer,
+        chunks = split_message(answer) or ["-"]
+        if len(chunks) > MAX_REPLY_CHUNKS:
+            reply = await self._reply_with_file(message, answer)
+            self._track_reply(message, reply)
+            return reply
+
+        # Each chunk replies to the previous one, so the reply chain that
+        # build_chat() walks still reaches the user's message from any chunk.
+        target = message
+        for index, chunk in enumerate(chunks):
+            target = await target.respond(
+                chunk,
+                reply=True,
+                mentions_reply=index == 0,
+                flags=hikari.MessageFlag.SUPPRESS_EMBEDS,
+            )
+            self._track_reply(message, target)
+
+        return target
+
+    def _track_reply(self, message: hikari.Message, reply: hikari.Message) -> None:
+        self.cached_reply_ids[message.id].add(reply.id)
+        self.cached_messages[message.channel_id][reply.id] = reply
+
+    async def _reply_with_file(
+        self, message: hikari.Message, answer: str
+    ) -> hikari.Message:
+        path = Path(tempfile.mktemp(suffix=".log"))
+        try:
+            path.write_text(answer, encoding="utf-8")
+            return await message.respond(
+                attachment=hikari.File(path, filename="message.md"),
                 reply=True,
                 mentions_reply=True,
                 flags=hikari.MessageFlag.SUPPRESS_EMBEDS,
             )
-
-        self.cached_reply_ids[message.id].add(reply.id)
-        self.cached_messages[message.channel_id][reply.id] = reply
-        return reply
+        finally:
+            path.unlink(missing_ok=True)
 
     async def build_chat(self, message: hikari.Message) -> Chat:
         bot_mention = self.bot.get_me().mention
@@ -452,6 +469,20 @@ class ChatGPT:
                         limit=INPUT_TOKEN_LIMIT,
                     )
                 msg = {"role": role, "content": text, TOKEN_MARKER_ATTR: total_tokens}
+
+            # A long answer is sent as several chained messages; rejoin them
+            # into one assistant turn.
+            previous = messages[-1] if messages else None
+            if (
+                role == "assistant"
+                and previous is not None
+                and previous["role"] == "assistant"
+                and isinstance(previous["content"], str)
+                and isinstance(msg["content"], str)
+            ):
+                previous["content"] += "\n" + msg["content"]
+                previous[TOKEN_MARKER_ATTR] += msg[TOKEN_MARKER_ATTR]
+                continue
 
             if role == "system":
                 messages.insert(0, msg)
