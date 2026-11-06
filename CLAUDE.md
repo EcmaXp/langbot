@@ -85,7 +85,7 @@ All configuration uses `LANGBOT_` prefix with `__` for nested settings.
 
 ### Code Standards
 
-- Python 3.14+ with comprehensive type hints
+- Python 3.15+ with comprehensive type hints
 - Async/await for all I/O operations
 - Pydantic for data validation
 - Import order: future annotations → standard library → third-party → local
