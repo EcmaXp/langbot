@@ -282,10 +282,7 @@ class ChatGPT:
         if not isinstance(channel, hikari.TextableChannel):
             return
 
-        if event.message.id in self.cached_reply_ids:
-            reply_ids = self.cached_reply_ids.pop(event.message.id, None)
-            if reply_ids:
-                await channel.delete_messages(reply_ids)
+        await self._delete_replies(channel, event.message.id)
 
         await self.on_message(event)
 
@@ -294,10 +291,13 @@ class ChatGPT:
         if not isinstance(channel, hikari.TextableChannel):
             return
 
-        if event.message_id in self.cached_reply_ids:
-            reply_ids = self.cached_reply_ids.pop(event.message_id, None)
-            if reply_ids:
-                await channel.delete_messages(reply_ids)
+        await self._delete_replies(channel, event.message_id)
+
+    async def _delete_replies(
+        self, channel: hikari.TextableChannel, message_id: hikari.Snowflake
+    ) -> None:
+        for reply_id in self.cached_reply_ids.pop(message_id, None) or ():
+            await channel.delete_messages(reply_id)
 
     async def chatgpt(self, message: hikari.Message):
         channel = await self.fetch_channel(message.channel_id)
