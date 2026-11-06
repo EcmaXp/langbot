@@ -54,4 +54,5 @@ ignore = [
 ]
 
 [tool.uv]
+exclude-newer = "1 week"
 exclude-newer-package = { pydantic-ai-slim = false, pydantic-graph = false, genai-prices = false, anthropic = false, google-genai = false, openai = false }

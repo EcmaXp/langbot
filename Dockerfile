@@ -1,14 +1,22 @@
-FROM python:3.15-slim
-COPY --from=ghcr.io/astral-sh/uv:0.13 /uv /bin/uv
+FROM python:3.15-slim AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.13.7 /uv /bin/uv
+ENV PYTHONOPTIMIZE=2 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_NO_DEV=1 \
+    UV_PYTHON_DOWNLOADS=0
 WORKDIR /app
 
-COPY ./pyproject.toml ./uv.lock /app/
+COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --compile-bytecode
+    uv sync --frozen --no-install-project --no-editable
 
-COPY ./langbot /app/langbot
+COPY langbot ./langbot
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --compile-bytecode
+    uv sync --locked --no-editable
 
+FROM python:3.15-slim
 ENV PYTHONOPTIMIZE=2
-CMD ["uv", "run", "--frozen", "--no-sync", "langbot"]
+COPY --from=builder /app/.venv /app/.venv
+USER 65532:65532
+CMD ["/app/.venv/bin/langbot"]
